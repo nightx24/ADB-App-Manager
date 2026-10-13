@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
-    QStackedWidget, QFrame, QDialog,
+    QStackedWidget, QFrame, QDialog, QCheckBox, QListWidget, QProgressBar,
 )
 
 APP_NAME = "ADB App Manager"
@@ -1287,96 +1287,266 @@ class MainWindow(QMainWindow):
         return [adb, "-s", self.device_id, *args]
 
     def install_apks(self) -> None:
-        """Install one or more independent APK files, one at a time."""
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select APK file(s) to install", "", "Android packages (*.apk)"
-        )
-        if not paths:
-            return
-        paths = [str(Path(path).expanduser().resolve()) for path in paths]
-        missing = [path for path in paths if not Path(path).is_file()]
-        if missing:
-            QMessageBox.warning(self, APP_NAME, "These APK files could not be found:\n" + "\n".join(missing))
-            return
+        """Open a batch APK queue supporting drag/drop, options, retry, and logs."""
         adb = self.adb_path()
-        if not adb or not self.device_id:
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
-        serial = self.device_id
-        if not self._confirmed(
-            "Install APK files?",
-            f"Install {len(paths)} APK file(s) on {serial}?\n\n"
-            "Select separate apps here. For a split APK bundle (base.apk plus config APKs), use "
-            "'Install split APK set' instead."
-        ):
-            return
-
-        def run_next(i: int = 0) -> None:
-            if i >= len(paths):
-                self.log_message("APK installation queue finished.")
-                QMessageBox.information(self, APP_NAME, "Finished processing the selected APK files. Check the activity log for each result.")
-                return
-            path = paths[i]
-            self.log_message(f"Installing {Path(path).name}…")
-            command = [adb, "-s", serial, "install", "-r", path]
-
-            def completed(output: str) -> None:
-                result = output.strip() or "(no output)"
-                self.log_message(f"{Path(path).name}: {result}")
-                if "Success" not in result and "success" not in result.lower():
-                    QMessageBox.warning(
-                        self, "APK installation failed",
-                        f"ADB did not confirm installation of {Path(path).name}.\n\n{result}\n\n"
-                        "For split APKs, use 'Install split APK set'."
-                    )
-                run_next(i + 1)
-
-            self.run_async(command, completed, timeout=180)
-        run_next()
+        self._open_apk_queue(split_mode=False)
 
     def install_split_apks(self) -> None:
-        """Install a single app delivered as base.apk plus one or more split APKs."""
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select all APK files from one split-APK bundle", "", "Android packages (*.apk)"
-        )
-        if not paths:
+        """Install one app's split APK set together using install-multiple."""
+        adb = self.adb_path()
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
             return
-        paths = [str(Path(path).expanduser().resolve()) for path in paths]
-        missing = [path for path in paths if not Path(path).is_file()]
-        if missing:
-            QMessageBox.warning(self, APP_NAME, "These APK files could not be found:\n" + "\n".join(missing))
+        if not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
-        if len(paths) < 2:
-            QMessageBox.information(
-                self, APP_NAME,
-                "A split APK install needs at least two files (usually base.apk and config APKs). "
-                "For one ordinary APK, use 'Install APK(s)'."
-            )
-            return
+        self._open_apk_queue(split_mode=True)
+
+    def _open_apk_queue(self, split_mode: bool = False, retry_paths: list[str] | None = None) -> None:
+        """Queue UI for batch installs. Each standalone APK is installed separately."""
         adb = self.adb_path()
         if not adb or not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
-        if not self._confirmed(
-            "Install split APK bundle?",
-            f"Install {len(paths)} APK parts together on {self.device_id}?\n\n"
-            "All selected files must belong to the same app and bundle version."
-        ):
-            return
-        command = [adb, "-s", self.device_id, "install-multiple", "-r", *paths]
-        self.log_message(f"Installing split APK bundle ({len(paths)} files)…")
 
-        def completed(output: str) -> None:
-            result = output.strip() or "(no output)"
-            self.log_message("Split APK install result: " + result)
-            if "Success" in result:
-                QMessageBox.information(self, APP_NAME, "Split APK bundle installed successfully.")
-            else:
-                QMessageBox.warning(
-                    self, "Split APK installation failed",
-                    result + "\n\nCheck that every APK part belongs to the same app/version and is compatible with the device."
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Split APK installer" if split_mode else "Batch APK installer")
+        dialog.resize(700, 520)
+        layout = QVBoxLayout(dialog)
+        intro = QLabel(
+            "Select every part of ONE app bundle (base.apk + matching config APKs)."
+            if split_mode else
+            "Add separate APK files to install them one after another. Drag files into the list or use Add APKs."
+        )
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        queue = QListWidget()
+        queue.setAcceptDrops(True)
+        queue.setDragDropMode(QListWidget.DragDropMode.DropOnly)
+        queue.setToolTip("Drop .apk files here")
+        layout.addWidget(queue, 1)
+        progress = QProgressBar()
+        progress.setRange(0, 100)
+        progress.setValue(0)
+        layout.addWidget(progress)
+        status = QLabel("Ready")
+        status.setWordWrap(True)
+        layout.addWidget(status)
+
+        options_row = QHBoxLayout()
+        reinstall = QCheckBox("Reinstall / update (-r)")
+        reinstall.setChecked(True)
+        downgrade = QCheckBox("Allow downgrade (-d)")
+        grant = QCheckBox("Grant runtime permissions (-g)")
+        options_row.addWidget(reinstall)
+        options_row.addWidget(downgrade)
+        options_row.addWidget(grant)
+        layout.addLayout(options_row)
+
+        buttons = QHBoxLayout()
+        add_btn = QPushButton("Add APKs…")
+        remove_btn = QPushButton("Remove selected")
+        install_btn = QPushButton("Install queue")
+        retry_btn = QPushButton("Retry failed")
+        retry_btn.setEnabled(False)
+        cancel_btn = QPushButton("Close")
+        for b in (add_btn, remove_btn, retry_btn, install_btn, cancel_btn):
+            buttons.addWidget(b)
+        layout.addLayout(buttons)
+
+        entries: list[dict] = []
+        busy = {"value": False, "cancel": False, "split": split_mode}
+        active_dialog = dialog
+
+        def add_paths(paths: list[str]) -> None:
+            existing = {item["path"] for item in entries}
+            for raw in paths:
+                path = str(Path(raw).expanduser().resolve())
+                if Path(path).suffix.lower() != ".apk" or not Path(path).is_file() or path in existing:
+                    continue
+                existing.add(path)
+                entries.append({"path": path, "status": "Queued", "detail": ""})
+                item = QListWidgetItem(f"Queued  •  {Path(path).name}  •  {Path(path).stat().st_size / 1024 / 1024:.1f} MB")
+                item.setData(Qt.ItemDataRole.UserRole, path)
+                queue.addItem(item)
+            if entries and split_mode:
+                status.setText("Split mode: every queued file must belong to the same app and version.")
+            elif entries:
+                status.setText(f"{len(entries)} APK file(s) queued.")
+            install_btn.setEnabled(bool(entries) and not busy["value"])
+
+        # QListWidget's native drop support does not expose file paths in every Qt version,
+        # so the Add APKs button is always available as a reliable fallback.
+        def add_files() -> None:
+            paths, _ = QFileDialog.getOpenFileNames(dialog, "Add APK files", "", "Android packages (*.apk)")
+            add_paths(paths)
+
+        def remove_selected() -> None:
+            if busy["value"]:
+                return
+            selected = {item.data(Qt.ItemDataRole.UserRole) for item in queue.selectedItems()}
+            if not selected:
+                return
+            entries[:] = [entry for entry in entries if entry["path"] not in selected]
+            for row in reversed(range(queue.count())):
+                if queue.item(row).data(Qt.ItemDataRole.UserRole) in selected:
+                    queue.takeItem(row)
+            install_btn.setEnabled(bool(entries))
+
+        def update_item(path: str, state: str, detail: str = "") -> None:
+            for index, entry in enumerate(entries):
+                if entry["path"] == path:
+                    entry["status"] = state
+                    entry["detail"] = detail
+                    queue.item(index).setText(f"{state}  •  {Path(path).name}" + (f"  —  {detail}" if detail else ""))
+                    break
+
+        def set_running(running: bool) -> None:
+            busy["value"] = running
+            add_btn.setEnabled(not running)
+            remove_btn.setEnabled(not running)
+            install_btn.setEnabled(not running and any(e["status"] in ("Queued", "Failed") for e in entries))
+            retry_btn.setEnabled(not running and any(e["status"] == "Failed" for e in entries))
+            cancel_btn.setText("Cancel pending" if running else "Close")
+
+        def run_batch(only_failed: bool = False) -> None:
+            if busy["value"]:
+                return
+            selected_entries = [e for e in entries if e["status"] == "Failed"] if only_failed else [
+                e for e in entries if e["status"] in ("Queued", "Failed")
+            ]
+            if not selected_entries:
+                QMessageBox.information(dialog, APP_NAME, "There are no queued or failed APKs to install.")
+                return
+            if split_mode and len(selected_entries) < 2:
+                QMessageBox.information(dialog, APP_NAME, "Split install requires at least two APK files. For a normal APK, use the batch installer.")
+                return
+            serial = self.device_id
+            if not serial:
+                QMessageBox.warning(dialog, APP_NAME, "Select a connected Android device first.")
+                return
+            target_desc = f"{len(selected_entries)} APK file(s) on {serial}"
+            if not self._confirmed("Confirm APK installation", f"Install {target_desc}? Only install APKs you trust."):
+                return
+            busy["cancel"] = False
+            set_running(True)
+            results = {"success": 0, "failed": 0, "skipped": 0}
+            for entry in selected_entries:
+                entry["status"] = "Queued"
+            current = {"index": 0}
+
+            def next_item() -> None:
+                if busy["cancel"]:
+                    remaining = selected_entries[current["index"]:]
+                    for entry in remaining:
+                        update_item(entry["path"], "Skipped", "Cancelled before install")
+                        results["skipped"] += 1
+                    finish()
+                    return
+                if current["index"] >= len(selected_entries):
+                    finish()
+                    return
+                entry = selected_entries[current["index"]]
+                path = entry["path"]
+                current["index"] += 1
+                update_item(path, "Installing")
+                progress.setValue(int((current["index"] - 1) * 100 / max(1, len(selected_entries))))
+                status.setText(f"Installing {current['index']} of {len(selected_entries)}: {Path(path).name}")
+                self.log_message(f"APK queue: installing {Path(path).name} on {serial}")
+                args = ["install"]
+                if reinstall.isChecked():
+                    args.append("-r")
+                if downgrade.isChecked():
+                    args.append("-d")
+                if grant.isChecked():
+                    args.append("-g")
+                if split_mode:
+                    # Split bundles are submitted together in a single ADB command below.
+                    install_split()
+                    return
+                command = [adb, "-s", serial, *args, path]
+
+                def completed(output: str) -> None:
+                    result = output.strip() or "(no output)"
+                    ok = "success" in result.lower()
+                    update_item(path, "Installed" if ok else "Failed", result)
+                    results["success" if ok else "failed"] += 1
+                    self.log_message(f"APK queue {Path(path).name}: {result}")
+                    next_item()
+                self.run_async(command, completed, timeout=240)
+
+            def install_split() -> None:
+                paths = [e["path"] for e in selected_entries]
+                args = ["install-multiple"]
+                if reinstall.isChecked():
+                    args.append("-r")
+                if downgrade.isChecked():
+                    args.append("-d")
+                if grant.isChecked():
+                    args.append("-g")
+                for entry in selected_entries:
+                    update_item(entry["path"], "Installing", "Part of split bundle")
+                progress.setValue(20)
+                command = [adb, "-s", serial, *args, *paths]
+                def completed(output: str) -> None:
+                    result = output.strip() or "(no output)"
+                    ok = "success" in result.lower()
+                    for entry in selected_entries:
+                        update_item(entry["path"], "Installed" if ok else "Failed", result)
+                    results["success" if ok else "failed"] += len(selected_entries)
+                    self.log_message("Split APK queue result: " + result)
+                    current["index"] = len(selected_entries)
+                    finish()
+                self.run_async(command, completed, timeout=360)
+
+            def finish() -> None:
+                progress.setValue(100 if not busy["cancel"] else progress.value())
+                set_running(False)
+                status.setText(
+                    f"Finished — {results['success']} installed, {results['failed']} failed, {results['skipped']} skipped. "
+                    "Select a failed row and use Retry failed to retry failures."
                 )
-        self.run_async(command, completed, timeout=300)
+                self.log_message(
+                    f"APK batch summary: {results['success']} installed, {results['failed']} failed, {results['skipped']} skipped."
+                )
+                retry_btn.setEnabled(any(e["status"] == "Failed" for e in entries))
+                try:
+                    self._app_data_dir.mkdir(parents=True, exist_ok=True)
+                    report = self._app_data_dir / f"apk-install-log-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+                    report.write_text(
+                        f"Device: {serial}\nDate: {datetime.now().isoformat()}\n"
+                        + "\n".join(f"{e['status']}: {e['path']} :: {e['detail']}" for e in entries),
+                        encoding="utf-8",
+                    )
+                    self.log_message(f"Saved APK installation report: {report}")
+                except OSError as exc:
+                    self.log_message(f"Could not save APK installation report: {exc}")
+                QMessageBox.information(dialog, "APK installation summary", status.text())
+
+            next_item()
+
+        def cancel_or_close() -> None:
+            if busy["value"]:
+                busy["cancel"] = True
+                status.setText("Cancellation requested. The current ADB install will finish; pending files will be skipped.")
+            else:
+                dialog.accept()
+
+        add_btn.clicked.connect(add_files)
+        remove_btn.clicked.connect(remove_selected)
+        install_btn.clicked.connect(lambda: run_batch(False))
+        retry_btn.clicked.connect(lambda: run_batch(True))
+        cancel_btn.clicked.connect(cancel_or_close)
+        if retry_paths:
+            add_paths(retry_paths)
+        dialog.exec()
 
     def clear_app_data(self) -> None:
         package = self.selected_package()
