@@ -8,7 +8,7 @@ finish-args:
   - --socket=fallback-x11
   - --socket=wayland
   - --device=all
-  - --filesystem=host
+  - --filesystem=host:ro
   - --env=PATH=/app/bin:/usr/bin:/run/host/usr/bin
 modules:
   - name: python-dependencies
