@@ -28,7 +28,8 @@ This project implements its own feature set inspired by common Android device-ma
 - [ ] Resolution and DPI controls with reset actions
 - [ ] Reboot to system, recovery, and bootloader
 - [ ] Optional scrcpy integration for screen viewing and control
-- [ ] USB and wireless debugging connection support, including multiple devices
+- [x] Android 11+ wireless debugging pairing and connection workflow
+- [ ] Legacy TCP/IP-over-USB workflow and multiple-device connection history
 - [ ] Connection history and device profiles
 
 ### Usability and safety
@@ -44,6 +45,6 @@ This project implements its own feature set inspired by common Android device-ma
 1. Batch package operations, package state, presets, and debloat recommendations.
 2. APK installation/export, multi-file transfer, and local APK library.
 3. Shell, logcat, permissions, resolution/DPI, and reboot tools.
-4. Process information, wireless/multi-device workflow, drag-and-drop, scrcpy integration, customization, and secure key handling.
+4. Process information, legacy TCP/IP and multi-device workflow, drag-and-drop, scrcpy integration, customization, and secure key handling.
 
 Features will be marked complete only after implementation and a successful build/test. Some capabilities depend on the Android version, OEM restrictions, host permissions, or external tools such as scrcpy.
