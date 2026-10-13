@@ -13,6 +13,9 @@ finish-args:
 modules:
   - name: python-dependencies
     buildsystem: simple
+    sources:
+      - type: dir
+        path: ..
     build-commands:
       - pip3 install --no-cache-dir --prefix=/app 'PySide6>=6.7,<7'
   - name: adb-app-manager
