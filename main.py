@@ -175,6 +175,9 @@ class InventoryWorker(QThread):
                     self.done.emit(payload, "")
                     return
                 except Exception as exc:
+                    reason = getattr(exc, "reason", None)
+                    if isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError):
+                        raise RuntimeError("AMBridge took too long to build the app inventory. Keep the phone unlocked and retry.")
                     last_error = str(exc)
                     time.sleep(0.5)
             raise RuntimeError(last_error + " Keep the phone unlocked, reopen AMBridge, and retry.")
