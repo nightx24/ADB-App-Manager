@@ -12,8 +12,8 @@ This project implements its own feature set inspired by common Android device-ma
 - [ ] App-data clearing with an explicit data-loss confirmation
 - [ ] Show app label, version, install source, enabled state, and package size where Android exposes the information
 - [ ] Sort by name, package, size, and app type
-- [ ] **Connected-device app history:** show apps disabled on the connected phone in a dedicated list, with an enable/restore action
-- [ ] **Uninstalled-app history:** record package names and timestamps when this app uninstalls an app, and show the history for that device with a reinstall/restore option when possible
+- [x] **Connected-device app history:** show apps disabled on the connected phone in a dedicated list, with an enable/restore action
+- [x] **Uninstalled-app history:** record package names and timestamps when this app uninstalls an app, and show the history for that device with a reinstall/restore option when possible
 - [ ] Clearly distinguish apps uninstalled by ADB App Manager from apps that were already absent; Android generally does not provide a complete history of apps uninstalled before tracking began
 - [ ] Refresh app status from the connected phone and handle device changes/reconnections safely
 
@@ -44,7 +44,7 @@ This project implements its own feature set inspired by common Android device-ma
 - [ ] ADB key-file protection using OS-provided secure storage where available
 - [ ] Operation queue, progress, cancellation where safe, and exportable logs
 - [ ] Explicit warnings for system packages, permission changes, data clearing, shell commands, and reboot actions
-- [ ] Automated tests and Windows/Linux packaging verification
+- [ ] Expand automated tests beyond package parsing and run device-independent regression checks; Windows/Linux packaging verification is run in GitHub Actions
 
 ## Implementation order
 
