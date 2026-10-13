@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
 import shutil
 import subprocess
@@ -9,13 +10,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QStandardPaths
 from PySide6.QtGui import QAction, QFont
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
-    QStackedWidget, QFrame,
+    QStackedWidget, QFrame, QDialog,
 )
 
 APP_NAME = "ADB App Manager"
@@ -126,6 +127,7 @@ class MainWindow(QMainWindow):
         self.packages: list[Package] = []
         self.third_party_names: set[str] = set()
         self.device_id: str | None = None
+        self._history_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "uninstall-history.json"
         self._ambridge_prompted_devices: set[str] = set()
         self.worker: Worker | None = None
         self._build_ui()
@@ -288,6 +290,12 @@ class MainWindow(QMainWindow):
         self.export_btn = QPushButton("Export CSV")
         self.export_btn.clicked.connect(self.export_csv)
         app_heading.addWidget(self.export_btn)
+        self.disabled_apps_btn = QPushButton("Disabled apps")
+        self.disabled_apps_btn.clicked.connect(self.show_disabled_apps)
+        app_heading.addWidget(self.disabled_apps_btn)
+        self.uninstall_history_btn = QPushButton("Uninstall history")
+        self.uninstall_history_btn.clicked.connect(self.show_uninstall_history)
+        app_heading.addWidget(self.uninstall_history_btn)
         apps.addLayout(app_heading)
 
         toolbar = QHBoxLayout()
@@ -691,7 +699,13 @@ class MainWindow(QMainWindow):
                     args = [adb, "-s", self.device_id, "shell", "pm", "disable-user", "--user", "0", package]
                 else:
                     args = [adb, "-s", self.device_id, "shell", "pm", "enable", "--user", "0", package]
-                self.run_async(args, lambda output: (self.log_message(f"{action.title()} {package}: {output}"), run_next(index + 1)), timeout=60)
+                serial = self.device_id
+                def operation_finished(output: str) -> None:
+                    self.log_message(f"{action.title()} {package}: {output}")
+                    if action == "uninstall" and "Success" in output:
+                        self._record_uninstall(serial, package)
+                    run_next(index + 1)
+                self.run_async(args, operation_finished, timeout=60)
             run_next()
             return
         package = packages[0]
@@ -716,8 +730,189 @@ class MainWindow(QMainWindow):
         self.log_message(f"{action.title()} result for {package}: {output or 'Command completed.'}")
         self.statusBar().showMessage(f"{action.title()} command completed; check the log for ADB's response.", 7000)
         if action == "uninstall" and "Success" in output:
+            self._record_uninstall(self.device_id, package)
             self.packages = [p for p in self.packages if p.name != package]
             self.render_packages()
+
+
+    def _read_uninstall_history(self) -> list[dict[str, str]]:
+        """Read this app's local uninstall log; Android does not expose a complete historic list."""
+        try:
+            data = json.loads(self._history_path.read_text(encoding="utf-8"))
+            return data if isinstance(data, list) else []
+        except (OSError, json.JSONDecodeError):
+            return []
+
+    def _record_uninstall(self, serial: str | None, package: str) -> None:
+        if not serial or not package:
+            return
+        history = self._read_uninstall_history()
+        history.append({
+            "device": serial,
+            "package": package,
+            "uninstalled_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        })
+        try:
+            self._history_path.parent.mkdir(parents=True, exist_ok=True)
+            self._history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
+            self.log_message(f"Recorded uninstall history for {package} on {serial}.")
+        except OSError as exc:
+            self.log_message(f"Could not save uninstall history: {exc}")
+            QMessageBox.warning(
+                self, APP_NAME,
+                "The uninstall succeeded, but its local history entry could not be saved. Check the app's user-data folder permissions."
+            )
+
+    def show_disabled_apps(self) -> None:
+        if not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Select an authorized Android device first.")
+            return
+        adb = self.adb_path()
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        serial = self.device_id
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Disabled apps — {serial}")
+        dialog.resize(720, 480)
+        layout = QVBoxLayout(dialog)
+        note = QLabel("Packages currently reported disabled by Android on this device. Select one and choose Enable.")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        table = QTableWidget(0, 1)
+        table.setHorizontalHeaderLabels(["Package name"])
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        layout.addWidget(table, 1)
+        buttons = QHBoxLayout()
+        enable_btn = QPushButton("Enable selected")
+        close_btn = QPushButton("Close")
+        buttons.addWidget(enable_btn)
+        buttons.addStretch(1)
+        buttons.addWidget(close_btn)
+        layout.addLayout(buttons)
+
+        def populate(output: str) -> None:
+            table.setRowCount(0)
+            for line in output.splitlines():
+                value = line.strip()
+                if value.startswith("package:"):
+                    package = value[len("package:"):].strip()
+                    row = table.rowCount()
+                    table.insertRow(row)
+                    item = QTableWidgetItem(package)
+                    item.setData(Qt.ItemDataRole.UserRole, package)
+                    table.setItem(row, 0, item)
+            if table.rowCount() == 0:
+                self.log_message(f"No disabled packages were reported for {serial}.")
+                note.setText("No disabled packages were reported for this device.")
+            else:
+                note.setText(f"{table.rowCount()} disabled package(s) found on {serial}.")
+
+        def refresh() -> None:
+            self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages", "-d"], populate, timeout=60)
+
+        def enable_selected() -> None:
+            row = table.currentRow()
+            item = table.item(row, 0) if row >= 0 else None
+            package = item.data(Qt.ItemDataRole.UserRole) if item else None
+            if not package:
+                QMessageBox.information(dialog, APP_NAME, "Select a disabled package first.")
+                return
+            if not self._confirmed("Enable package?", f"Try to enable this package for user 0?\\n\\n{package}"):
+                return
+            self.run_async(
+                [adb, "-s", serial, "shell", "pm", "enable", "--user", "0", package],
+                lambda output: (self.log_message(f"Enable {package}: {output}"), refresh(), self.load_packages()),
+                timeout=60,
+            )
+
+        enable_btn.clicked.connect(enable_selected)
+        close_btn.clicked.connect(dialog.accept)
+        refresh()
+        dialog.exec()
+
+    def show_uninstall_history(self) -> None:
+        history = self._read_uninstall_history()
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Uninstall history")
+        dialog.resize(780, 460)
+        layout = QVBoxLayout(dialog)
+        note = QLabel(
+            "This list records successful uninstall commands issued by ADB App Manager on this computer. "
+            "It cannot show uninstalls from before tracking began or actions performed elsewhere."
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        table = QTableWidget(0, 3)
+        table.setHorizontalHeaderLabels(["Device serial", "Package name", "Uninstalled at"])
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        for entry in reversed(history):
+            row = table.rowCount()
+            table.insertRow(row)
+            values = [entry.get("device", ""), entry.get("package", ""), entry.get("uninstalled_at", "")]
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if column == 1:
+                    item.setData(Qt.ItemDataRole.UserRole, entry.get("package", ""))
+                table.setItem(row, column, item)
+        layout.addWidget(table, 1)
+        buttons = QHBoxLayout()
+        restore_btn = QPushButton("Try restore selected")
+        close_btn = QPushButton("Close")
+        buttons.addWidget(restore_btn)
+        buttons.addStretch(1)
+        buttons.addWidget(close_btn)
+        layout.addLayout(buttons)
+
+        def restore_selected() -> None:
+            row = table.currentRow()
+            if row < 0:
+                QMessageBox.information(dialog, APP_NAME, "Select a history entry first.")
+                return
+            serial = table.item(row, 0).text()
+            package_item = table.item(row, 1)
+            package = package_item.data(Qt.ItemDataRole.UserRole) if package_item else ""
+            adb = self.adb_path()
+            if not adb or not serial or not package:
+                return
+            if not self._confirmed(
+                "Try to restore package?",
+                f"Ask Android to restore {package} for user 0 on device {serial}?\\n\\n"
+                "This works only when Android still has an installable system package. "
+                "For a fully removed app, install its APK instead."
+            ):
+                return
+
+            def restored(output: str) -> None:
+                self.log_message(f"Restore attempt for {package} on {serial}: {output}")
+                if "success" in output.casefold():
+                    QMessageBox.information(dialog, APP_NAME, f"Android reports that {package} was restored.")
+                    if self.device_id == serial:
+                        self.load_packages()
+                else:
+                    QMessageBox.warning(
+                        dialog, APP_NAME,
+                        f"Android could not restore {package} with install-existing. If this was a regular APK that was fully removed, install the APK again.\\n\\n{output}"
+                    )
+            self.run_async(
+                [adb, "-s", serial, "shell", "cmd", "package", "install-existing", "--user", "0", package],
+                restored,
+                timeout=60,
+            )
+
+        restore_btn.clicked.connect(restore_selected)
+        close_btn.clicked.connect(dialog.accept)
+        if not history:
+            note.setText(note.text() + " No uninstall records have been saved yet.")
+        dialog.exec()
 
     def uninstall_package(self) -> None:
         self._package_action("uninstall")
