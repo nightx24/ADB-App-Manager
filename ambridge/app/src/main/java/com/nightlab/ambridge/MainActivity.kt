@@ -113,7 +113,7 @@ class MainActivity : Activity() {
                                 val body = if (isInventoryRequest) buildInventoryJson().toString().toByteArray(Charsets.UTF_8)
                                     else JSONObject().put("error", "not_found").toString().toByteArray(Charsets.UTF_8)
                                 val status = if (isInventoryRequest) "200 OK" else "404 Not Found"
-                                val headers = "HTTP/1.1 $status\\r\\nContent-Type: application/json; charset=utf-8\\r\\nContent-Length: ${body.size}\\r\\nConnection: close\\r\\nCache-Control: no-store\\r\\n\\r\\n"
+                                val headers = "HTTP/1.1 $status\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${body.size}\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n"
                                 client.getOutputStream().apply {
                                     write(headers.toByteArray(Charsets.UTF_8))
                                     write(body)
