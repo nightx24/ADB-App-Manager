@@ -80,6 +80,64 @@ jobs:
           cp dist/ADB-App-Manager release/ADB-App-Manager
           chmod +x release/ADB-App-Manager
           tar -C release -czf release/ADB-App-Manager-Linux.tar.gz ADB-App-Manager
+
+          # Debian/Ubuntu/Linux Mint package
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev rpm
+          DEB_ROOT="$PWD/deb-root"
+          install -Dm755 dist/ADB-App-Manager "$DEB_ROOT/usr/bin/adb-app-manager"
+          install -Dm644 AppDir/adb-app-manager.desktop "$DEB_ROOT/usr/share/applications/adb-app-manager.desktop"
+          install -Dm644 AppDir/usr/share/icons/hicolor/scalable/apps/adb-app-manager.svg "$DEB_ROOT/usr/share/icons/hicolor/scalable/apps/adb-app-manager.svg"
+          mkdir -p "$DEB_ROOT/DEBIAN"
+          cat > "$DEB_ROOT/DEBIAN/control" <<'EOF'
+          Package: adb-app-manager
+          Version: 1.0.0
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: adb
+          Maintainer: nightx24
+          Description: Android package manager and ADB debloating utility
+           Manage Android packages, wireless ADB, and device tools.
+          EOF
+          dpkg-deb --root-owner-group --build "$DEB_ROOT" release/ADB-App-Manager-amd64.deb
+
+          # RPM package for Fedora/RHEL/openSUSE-family systems
+          RPM_ROOT="$PWD/rpmbuild"
+          mkdir -p "$RPM_ROOT"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          install -Dm755 dist/ADB-App-Manager "$RPM_ROOT/SOURCES/adb-app-manager"
+          install -Dm644 AppDir/adb-app-manager.desktop "$RPM_ROOT/SOURCES/adb-app-manager.desktop"
+          install -Dm644 AppDir/usr/share/icons/hicolor/scalable/apps/adb-app-manager.svg "$RPM_ROOT/SOURCES/adb-app-manager.svg"
+          cat > "$RPM_ROOT/SPECS/adb-app-manager.spec" <<'EOF'
+          Name:           adb-app-manager
+          Version:        1.0.0
+          Release:        1
+          Summary:        Android package manager and ADB debloating utility
+          License:        MIT
+          BuildArch:      x86_64
+          Requires:       android-tools
+          Source0:        adb-app-manager
+          Source1:        adb-app-manager.desktop
+          Source2:        adb-app-manager.svg
+
+          %description
+          Manage Android packages, wireless ADB, and device tools.
+
+          %install
+          mkdir -p %{buildroot}%{_bindir}
+          mkdir -p %{buildroot}%{_datadir}/applications
+          mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
+          install -m 0755 %{SOURCE0} %{buildroot}%{_bindir}/adb-app-manager
+          install -m 0644 %{SOURCE1} %{buildroot}%{_datadir}/applications/adb-app-manager.desktop
+          install -m 0644 %{SOURCE2} %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/adb-app-manager.svg
+
+          %files
+          %{_bindir}/adb-app-manager
+          %{_datadir}/applications/adb-app-manager.desktop
+          %{_datadir}/icons/hicolor/scalable/apps/adb-app-manager.svg
+          EOF
+          rpmbuild --define "_topdir $RPM_ROOT" -bb "$RPM_ROOT/SPECS/adb-app-manager.spec"
+          cp "$RPM_ROOT"/RPMS/x86_64/*.rpm release/ADB-App-Manager-x86_64.rpm
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
