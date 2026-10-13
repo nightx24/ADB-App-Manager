@@ -7,6 +7,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Detect ADB and connected Android devices
 - Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
+- Conservative debloat guidance for a small set of exact package IDs, with conditional risk notes and a dedicated review filter
 - Uninstall an app for the current Android user (does not remove the APK from the system partition)
 - Disable and re-enable packages
 - Export the package inventory to CSV
@@ -83,6 +84,12 @@ Keep the phone awake and unlocked during setup. Some devices may require enablin
 ## Safety notes
 
 Package operations can disable important Android features. Review the package name before applying an action. The app intentionally does not provide one-click bulk debloating or automatically remove packages. “Uninstall for user” uses `pm uninstall --user 0`, which generally removes the package for the primary user while leaving system image files intact. Availability varies by Android version and device vendor. Reinstall/enable actions may not work for every package.
+
+## Debloat recommendation safety
+
+The **Recommended (review first)** filter is deliberately conservative and matches exact package IDs. It is not a universal “safe to remove” list: entries may only apply to particular ROMs, and recommendations are conditional on whether you use the app or feature. The app never automatically removes recommended packages. Check the package name and guidance, keep a backup, and remove only what you understand. Camera, calendar, and gallery entries are marked advanced because removing them without replacements can remove essential user-facing features. Packages absent from the small list are **not** implicitly safe or unsafe.
+
+The recommendation approach is informed by the [Universal Android Debloater Next Generation](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation) project. This project remains independent and does not bundle UAD-NG's package database.
 
 ## License
 
