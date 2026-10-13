@@ -15,7 +15,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Multi-select batch enable, disable, and uninstall operations
 - Batch APK installation, multi-file upload to Downloads, and package data clearing
 - Interactive ADB shell, device reboot modes, and package-list presets
-- Optional AMBridge companion detection and guided installation from a user-selected APK
+- Optional NightLab AMBridge companion detection (`com.nightlab.ambridge`) and guided installation from a user-selected APK
 - Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
 
 ## Downloads
@@ -73,13 +73,13 @@ Use **Pair Wi-Fi** for Android 11+ Wireless Debugging pairing. Enter the pairing
 
 Use this only on a trusted local network and only with devices you are authorized to manage. For older Android versions or devices using classic TCP/IP debugging, connect by USB and select **Enable TCP/IP (USB)**, then enter the phone's Wi-Fi IP with port `5555` in **Connect Wi-Fi**. Use this legacy mode only on a trusted network; it is different from Android 11+ Wireless Debugging.
 
-## Optional AMBridge companion
+## Optional NightLab AMBridge companion
 
-When an authorized device is selected, the app checks whether `com.cybercat.ambridge` is installed and offers a guided setup if it is missing. You can also use **AMBridge helper** to check again. If you choose to install it, select the APK you obtained from the official AMBridge source; this project does not bundle or redistribute Cyber.Cat's proprietary APK. The installer uses ADB and displays setup guidance for Android 6+ devices.
+When an authorized device is selected, the app checks for the companion package ID `com.nightlab.ambridge` and offers guided installation if it is missing. Use **AMBridge helper** to check again. Select an APK that you trust and have permission to use; this project does not bundle a companion APK. The filename does not establish an APK package ID or verify its publisher, so confirm the package ID after installation.
 
-Keep the phone awake and unlocked during setup. Some devices may require enabling installation via ADB and USB debugging security settings, then granting AMBridge the storage/files access requested by its documentation.
+Keep the phone awake and unlocked during setup. Installation may require Android settings that allow installation through ADB. Grant only permissions documented by the companion maintainer.
 
-**Current limitation:** this commit adds companion detection and installation guidance only. It does not yet read AMBridge's private data-exchange protocol, so package rows still show package IDs rather than AMBridge-provided app names/icons. The **Load packages** button refreshes the existing package inventory, not AMBridge metadata. A real names/icons integration needs a documented interface or protocol that can be implemented without guessing.
+**Current limitation:** this project checks for `com.nightlab.ambridge` and provides installation guidance only. It does not read a companion data-exchange protocol, so package rows still show package IDs rather than companion-provided app names/icons. **Load packages** refreshes this app’s existing package inventory, not companion metadata. Names/icons integration needs a documented interface or protocol; it will not be guessed.
 
 ## Safety notes
 
@@ -89,8 +89,8 @@ Package operations can disable important Android features. Review the package na
 
 The **Recommended (review first)** filter is deliberately conservative and matches exact package IDs. It is not a universal “safe to remove” list: entries may only apply to particular ROMs, and recommendations are conditional on whether you use the app or feature. The app never automatically removes recommended packages. Check the package name and guidance, keep a backup, and remove only what you understand. Camera, calendar, and gallery entries are marked advanced because removing them without replacements can remove essential user-facing features. Packages absent from the small list are **not** implicitly safe or unsafe.
 
-The recommendation approach is informed by the [Universal Android Debloater Next Generation](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation) project. This project remains independent and does not bundle UAD-NG's package database.
+The project is independently developed and takes inspiration from common Android device-management workflows in [ADB AppControl](https://adbappcontrol.com/en/), [Universal Android Debloater](https://github.com/0x192/universal-android-debloater), and [Universal Android Debloater Next Generation](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation). It does not claim to be any of those projects, and does not copy proprietary implementations, branding, or package databases.
 
 ## License
 
-MIT License. ADB App Manager is an independent project and is not affiliated with the authors of ADB AppControl or Universal Android Debloater Next Generation.
+MIT License. ADB App Manager is an independent project inspired by ADB AppControl, Universal Android Debloater, and Universal Android Debloater Next Generation. It is not affiliated with or endorsed by those projects or their maintainers.
