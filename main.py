@@ -24,6 +24,21 @@ APP_NAME = "ADB App Manager"
 
 # Conservative, exact-package recommendations adapted from public debloat research.
 # These are conditional suggestions, not guarantees. Never auto-remove any package.
+def parse_package_names(output: str) -> list[str]:
+    """Parse unique package names from Android package-manager output."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for line in output.splitlines():
+        value = line.strip()
+        if not value.startswith("package:"):
+            continue
+        name = value[len("package:"):].strip()
+        if name and name not in seen:
+            names.append(name)
+            seen.add(name)
+    return names
+
+
 DEBLOAT_RECOMMENDATIONS: dict[str, tuple[str, str]] = {
     "org.lineageos.jelly": (
         "Optional — review first",
@@ -584,14 +599,7 @@ class MainWindow(QMainWindow):
         self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages"], self._packages_loaded, timeout=60)
 
     def _packages_loaded(self, output: str) -> None:
-        names = []
-        for line in output.splitlines():
-            value = line.strip()
-            if value.startswith("package:"):
-                name = value[len("package:"):].strip()
-                if name:
-                    names.append(name)
-        self._all_package_names = names
+        self._all_package_names = parse_package_names(output)
         adb = self.adb_path()
         if not adb or not self.device_id:
             return
@@ -602,11 +610,7 @@ class MainWindow(QMainWindow):
         )
 
     def _third_party_loaded(self, output: str) -> None:
-        self.third_party_names = {
-            line.strip()[len("package:"):].strip()
-            for line in output.splitlines()
-            if line.strip().startswith("package:")
-        }
+        self.third_party_names = set(parse_package_names(output))
         self.packages = sorted(
             [
                 Package(
@@ -796,15 +800,12 @@ class MainWindow(QMainWindow):
 
         def populate(output: str) -> None:
             table.setRowCount(0)
-            for line in output.splitlines():
-                value = line.strip()
-                if value.startswith("package:"):
-                    package = value[len("package:"):].strip()
-                    row = table.rowCount()
-                    table.insertRow(row)
-                    item = QTableWidgetItem(package)
-                    item.setData(Qt.ItemDataRole.UserRole, package)
-                    table.setItem(row, 0, item)
+            for package in parse_package_names(output):
+                row = table.rowCount()
+                table.insertRow(row)
+                item = QTableWidgetItem(package)
+                item.setData(Qt.ItemDataRole.UserRole, package)
+                table.setItem(row, 0, item)
             if table.rowCount() == 0:
                 self.log_message(f"No disabled packages were reported for {serial}.")
                 note.setText("No disabled packages were reported for this device.")
