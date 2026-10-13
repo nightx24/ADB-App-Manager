@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction, QFont
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
-    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView,
+    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
 )
 
 APP_NAME = "ADB App Manager"
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Package name", "Type"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
@@ -124,11 +124,21 @@ class MainWindow(QMainWindow):
         self.disable_btn.clicked.connect(self.disable_package)
         self.enable_btn = QPushButton("Enable / restore")
         self.enable_btn.clicked.connect(self.enable_package)
-        for btn in (self.uninstall_btn, self.disable_btn, self.enable_btn):
+        self.install_btn = QPushButton("Install APK(s)")
+        self.install_btn.clicked.connect(self.install_apks)
+        self.clear_data_btn = QPushButton("Clear app data")
+        self.clear_data_btn.clicked.connect(self.clear_app_data)
+        for btn in (self.uninstall_btn, self.disable_btn, self.enable_btn, self.install_btn, self.clear_data_btn):
             btn.setEnabled(False)
             actions.addWidget(btn)
         actions.addStretch(1)
         root.addLayout(actions)
+        tools = QHBoxLayout()
+        for label, callback in [("Shell command", self.shell_command), ("Upload files", self.upload_files), ("Reboot", self.reboot_device), ("Save preset", self.save_preset), ("Load preset", self.load_preset)]:
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            tools.addWidget(button)
+        root.addLayout(tools)
 
         self.log = QTextEdit()
         self.log.setReadOnly(True)
@@ -290,13 +300,25 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Showing {len(rows)} of {len(self.packages)} packages")
         self._selection_changed()
 
+    def selected_packages(self) -> list[str]:
+        rows = sorted({index.row() for index in self.table.selectionModel().selectedRows()})
+        values = []
+        for row in rows:
+            item = self.table.item(row, 0)
+            if item:
+                values.append(item.data(Qt.ItemDataRole.UserRole))
+        if not values and self.table.currentRow() >= 0:
+            item = self.table.item(self.table.currentRow(), 0)
+            if item:
+                values.append(item.data(Qt.ItemDataRole.UserRole))
+        return values
+
     def selected_package(self) -> str | None:
-        row = self.table.currentRow()
-        item = self.table.item(row, 0) if row >= 0 else None
-        return item.data(Qt.ItemDataRole.UserRole) if item else None
+        selected = self.selected_packages()
+        return selected[0] if selected else None
 
     def _selection_changed(self) -> None:
-        enabled = bool(self.device_id and self.selected_package())
+        enabled = bool(self.device_id and self.selected_packages())
         self.uninstall_btn.setEnabled(enabled)
         self.disable_btn.setEnabled(enabled)
         self.enable_btn.setEnabled(enabled)
@@ -341,6 +363,106 @@ class MainWindow(QMainWindow):
 
     def enable_package(self) -> None:
         self._package_action("enable")
+
+
+    def _device_adb(self, *args: str) -> list[str] | None:
+        adb = self.adb_path()
+        if not adb or not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return None
+        return [adb, "-s", self.device_id, *args]
+
+    def install_apks(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(self, "Select APK files", "", "Android packages (*.apk)")
+        if not paths:
+            return
+        adb = self.adb_path()
+        if not adb or not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        if not self._confirmed("Install APK files?", f"Install {len(paths)} APK file(s) on {self.device_id}?"):
+            return
+        def run_next(i: int = 0) -> None:
+            if i >= len(paths):
+                self.log_message("APK installation queue finished.")
+                return
+            path = paths[i]
+            self.run_async([adb, "-s", self.device_id, "install", "-r", path],
+                lambda out: (self.log_message(f"{Path(path).name}: {out or 'Installed'}"), run_next(i + 1)), timeout=180)
+        run_next()
+
+    def clear_app_data(self) -> None:
+        package = self.selected_package()
+        cmd = self._device_adb("shell", "pm", "clear", package) if package else None
+        if cmd and self._confirmed("Clear app data?", f"This deletes the app's data and settings.\n\n{package}"):
+            self.run_async(cmd, lambda out: self.log_message(f"Clear data for {package}: {out}"), timeout=90)
+
+    def upload_files(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(self, "Select files to upload to Downloads", "")
+        if not paths:
+            return
+        adb = self.adb_path()
+        if not adb or not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        def run_next(i: int = 0) -> None:
+            if i >= len(paths):
+                self.log_message("File upload queue finished.")
+                return
+            path = paths[i]
+            self.run_async([adb, "-s", self.device_id, "push", path, "/sdcard/Download/" + Path(path).name],
+                lambda out: (self.log_message(f"Uploaded {Path(path).name}: {out}"), run_next(i + 1)), timeout=180)
+        run_next()
+
+    def shell_command(self) -> None:
+        command, ok = QInputDialog.getText(self, "ADB shell", "Enter an Android shell command:")
+        if not ok or not command.strip():
+            return
+        if not self._confirmed("Run shell command?", f"Run on the connected device?\n\n{command}\n\nOnly run commands you understand."):
+            return
+        cmd = self._device_adb("shell", "sh", "-c", command)
+        if cmd:
+            self.run_async(cmd, lambda out: self.log_message("Shell output:\n" + (out or "(no output)")), timeout=120)
+
+    def reboot_device(self) -> None:
+        mode, ok = QInputDialog.getItem(self, "Reboot device", "Choose target:", ["System", "Bootloader / Fastboot", "Recovery"], 0, False)
+        if not ok:
+            return
+        args = {"System": ["reboot"], "Bootloader / Fastboot": ["reboot", "bootloader"], "Recovery": ["reboot", "recovery"]}[mode]
+        cmd = self._device_adb(*args)
+        if cmd and self._confirmed("Reboot device?", f"Reboot the connected device into {mode}?"):
+            self.run_async(cmd, lambda out: self.log_message(f"Reboot command sent ({mode})."), timeout=30)
+
+    def save_preset(self) -> None:
+        selected = self.selected_packages()
+        if not selected:
+            QMessageBox.information(self, APP_NAME, "Select one or more packages first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Save package preset", "preset.txt", "Preset files (*.txt)")
+        if path:
+            try:
+                Path(path).write_text("\n".join(selected) + "\n", encoding="utf-8")
+                self.log_message(f"Saved preset with {len(selected)} package(s) to {path}.")
+            except OSError as exc:
+                QMessageBox.warning(self, APP_NAME, f"Could not save preset: {exc}")
+
+    def load_preset(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Load package preset", "", "Preset files (*.txt)")
+        if not path:
+            return
+        try:
+            names = {x.strip() for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip() and not x.lstrip().startswith("#")}
+        except OSError as exc:
+            QMessageBox.warning(self, APP_NAME, f"Could not load preset: {exc}")
+            return
+        self.table.clearSelection()
+        matched = 0
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item and item.data(Qt.ItemDataRole.UserRole) in names:
+                self.table.selectRow(row)
+                matched += 1
+        self.log_message(f"Preset loaded: selected {matched} matching package(s) out of {len(names)}.")
 
     def export_csv(self) -> None:
         if not self.packages:
