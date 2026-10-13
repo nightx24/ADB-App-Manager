@@ -1051,7 +1051,7 @@ class MainWindow(QMainWindow):
         self.wireless_connect()
 
     def check_ambridge(self, prompt_if_missing: bool = False) -> None:
-        """Check for the optional AMBridge companion without bundling its proprietary APK."""
+        """Check for the optional NightLab AMBridge companion package."""
         cmd = self._device_adb("shell", "pm", "list", "packages", "com.nightlab.ambridge")
         if not cmd:
             return
@@ -1063,8 +1063,8 @@ class MainWindow(QMainWindow):
             elif prompt_if_missing:
                 answer = QMessageBox.question(
                     self, "AMBridge is not installed",
-                    "AMBridge is an optional Android companion that may provide richer app metadata to compatible tools.\n\n"
-                    "This app does not bundle Cyber.Cat's proprietary APK. Would you like to select an AMBridge APK you obtained from its official source and install it with ADB?\n\n"
+                    "NightLab AMBridge is an optional companion expected to use package ID com.nightlab.ambridge.\n\n"
+                    "Choose only an APK you trust and have permission to use. This project does not include the companion APK. Would you like to select it and install it with ADB?\n\n"
                     "Requires Android 6 or newer. Keep the phone awake and unlocked during setup.",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No,
@@ -1072,7 +1072,7 @@ class MainWindow(QMainWindow):
                 if answer == QMessageBox.StandardButton.Yes:
                     self.install_ambridge_apk()
             else:
-                self.log_message("AMBridge is not installed. Choose AMBridge helper to install an official APK.")
+                self.log_message("NightLab AMBridge is not installed. Use AMBridge helper to select a trusted companion APK.")
         self.run_async(cmd, checked, timeout=45)
 
     def manage_ambridge(self) -> None:
@@ -1082,7 +1082,7 @@ class MainWindow(QMainWindow):
         answer = QMessageBox.question(
             self, "AMBridge companion",
             "Check whether com.nightlab.ambridge is installed on this device?\n\n"
-            "If missing, you can choose an APK you obtained from the official AMBridge source. The APK is not bundled with this project.",
+            "If missing, you can select a trusted companion APK. It must declare the package ID com.nightlab.ambridge to be detected. The APK is not bundled with this project.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
@@ -1091,14 +1091,14 @@ class MainWindow(QMainWindow):
 
     def install_ambridge_apk(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select official AMBridge APK", "", "Android package (*.apk)"
+            self, "Select NightLab AMBridge APK", "", "Android package (*.apk)"
         )
         if not path:
             return
         if Path(path).name.lower() != "com.nightlab.ambridge.apk":
             answer = QMessageBox.question(
                 self, "Confirm AMBridge APK",
-                "The selected file is not named com.nightlab.ambridge.apk. Only continue if you verified it came from the official AMBridge source.\n\nInstall this APK?",
+                "The selected file is not named com.nightlab.ambridge.apk. The filename alone does not prove its package ID or publisher. Only install an APK you trust and have permission to use.\n\nInstall this APK?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )
@@ -1120,7 +1120,7 @@ class MainWindow(QMainWindow):
         if "Success" in output:
             QMessageBox.information(
                 self, "AMBridge installed",
-                "AMBridge was installed. If the device requires it, open Android Settings → Apps → AMBridge and grant the requested storage/files access.\n\n"
+                "The APK installer reported success. Confirm the installed package ID is com.nightlab.ambridge. If needed, open Android Settings → Apps and grant only permissions documented by its maintainer.\n\n"
                 "Keep the phone awake and unlocked, then choose Load packages to refresh this app's inventory. AMBridge has no launcher UI."
             )
 
