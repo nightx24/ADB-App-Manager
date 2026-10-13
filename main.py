@@ -87,6 +87,12 @@ class MainWindow(QMainWindow):
         self.connect_btn = QPushButton("Refresh devices")
         self.connect_btn.clicked.connect(self.refresh_devices)
         header.addWidget(self.connect_btn)
+        self.wifi_connect_btn = QPushButton("Connect Wi-Fi")
+        self.wifi_connect_btn.clicked.connect(self.wireless_connect)
+        header.addWidget(self.wifi_connect_btn)
+        self.wifi_pair_btn = QPushButton("Pair Wi-Fi")
+        self.wifi_pair_btn.clicked.connect(self.wireless_pair)
+        header.addWidget(self.wifi_pair_btn)
         root.addLayout(header)
 
         toolbar = QHBoxLayout()
@@ -389,6 +395,99 @@ class MainWindow(QMainWindow):
     def enable_package(self) -> None:
         self._package_action("enable")
 
+
+    def _valid_endpoint(self, value: str) -> bool:
+        value = value.strip()
+        if value.count(":") != 1:
+            return False
+        host, port_text = value.rsplit(":", 1)
+        if not host or not port_text.isdigit():
+            return False
+        port = int(port_text)
+        return 1 <= port <= 65535 and all(ch.isalnum() or ch in ".-_" for ch in host)
+
+    def wireless_connect(self) -> None:
+        endpoint, ok = QInputDialog.getText(
+            self, "Connect over Wi-Fi", "Enter Android Wireless Debugging IP address and connection port (IP:port):"
+        )
+        if not ok or not endpoint.strip():
+            return
+        endpoint = endpoint.strip()
+        if not self._valid_endpoint(endpoint):
+            QMessageBox.warning(self, APP_NAME, "Enter a valid IP/host and port, for example 192.168.1.101:35555.")
+            return
+        if not self._confirmed(
+            "Connect to wireless device?",
+            f"Connect ADB to {endpoint} on your local network? Only connect to a device you own or are authorized to manage.",
+        ):
+            return
+        adb = self.adb_path()
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        self.run_async([adb, "connect", endpoint], lambda out: self._wireless_connected(endpoint, out), timeout=45)
+
+    def _wireless_connected(self, endpoint: str, output: str) -> None:
+        self.log_message(f"Wireless connection {endpoint}: {output or 'ADB command completed.'}")
+        if "connected to" in output.lower() or "already connected" in output.lower():
+            QMessageBox.information(
+                self, "Wireless connection",
+                f"ADB reports the connection to {endpoint} is ready. If the device is authorized, refresh devices and select it from the device list."
+            )
+        else:
+            QMessageBox.warning(
+                self, "Wireless connection result",
+                f"ADB did not confirm a connection to {endpoint}. Check that the phone and computer are on the same network and that Wireless Debugging is enabled. The connection port may change.\n\n{output}"
+            )
+        self.refresh_devices()
+
+    def wireless_pair(self) -> None:
+        pairing_endpoint, ok = QInputDialog.getText(
+            self, "Pair Android over Wi-Fi", "Enter the pairing IP address and pairing port shown by Android (IP:pairing-port):"
+        )
+        if not ok or not pairing_endpoint.strip():
+            return
+        pairing_endpoint = pairing_endpoint.strip()
+        if not self._valid_endpoint(pairing_endpoint):
+            QMessageBox.warning(self, APP_NAME, "Enter a valid pairing IP and port, for example 192.168.1.101:37123.")
+            return
+        code, ok = QInputDialog.getText(
+            self, "Wireless pairing code", "Enter the six-digit pairing code shown on the Android device:"
+        )
+        if not ok or not code.strip():
+            return
+        code = code.strip()
+        if not code.isdigit() or len(code) != 6:
+            QMessageBox.warning(self, APP_NAME, "The pairing code should contain six digits.")
+            return
+        if not self._confirmed(
+            "Pair Android device?",
+            f"Pair this computer with {pairing_endpoint}? Keep the phone awake and the Wireless Debugging pairing-code screen open.",
+        ):
+            return
+        adb = self.adb_path()
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        self.run_async(
+            [adb, "pair", pairing_endpoint, code],
+            lambda out: self._wireless_paired(pairing_endpoint, out),
+            timeout=60,
+        )
+
+    def _wireless_paired(self, endpoint: str, output: str) -> None:
+        self.log_message(f"Wireless pairing {endpoint}: {output or 'ADB command completed.'}")
+        if "successfully paired" not in output.lower():
+            QMessageBox.warning(
+                self, "Pairing result",
+                f"ADB did not confirm pairing. Check the code and pairing port, which are different from the normal connection port.\n\n{output}"
+            )
+            return
+        QMessageBox.information(
+            self, "Pairing successful",
+            "Pairing succeeded. Now enable Wireless Debugging on the phone and use Connect Wi-Fi with the separate IP address and connection port shown on the main Wireless Debugging screen."
+        )
+        self.wireless_connect()
 
     def check_acbridge(self, prompt_if_missing: bool = False) -> None:
         """Check for the optional ACBridge companion without bundling its proprietary APK."""
