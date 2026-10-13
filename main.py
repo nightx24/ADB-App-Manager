@@ -1407,7 +1407,22 @@ class MainWindow(QMainWindow):
                     continue
                 existing.add(path)
                 entries.append({"path": path, "status": "Queued", "detail": ""})
-                item = QListWidgetItem(f"Queued  •  {Path(path).name}  •  {Path(path).stat().st_size / 1024 / 1024:.1f} MB")
+                details = f"{Path(path).stat().st_size / 1024 / 1024:.1f} MB"
+                aapt = shutil.which("aapt") or shutil.which("aapt2")
+                if aapt:
+                    try:
+                        meta = subprocess.run([aapt, "dump", "badging", path], capture_output=True, text=True, timeout=8)
+                        for line in meta.stdout.splitlines():
+                            if line.startswith("package:"):
+                                fields = dict(part.split("=", 1) for part in line.replace("package:", "").split() if "=" in part)
+                                package = fields.get("name", "").strip("'")
+                                version = fields.get("versionName", "").strip("'")
+                                if package:
+                                    details += f" • {package}" + (f" • v{version}" if version else "")
+                                break
+                    except (OSError, subprocess.SubprocessError):
+                        pass
+                item = QListWidgetItem(f"Queued  •  {Path(path).name}  •  {details}")
                 item.setData(Qt.ItemDataRole.UserRole, path)
                 queue.addItem(item)
             if entries and split_mode:
