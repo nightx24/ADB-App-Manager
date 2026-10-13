@@ -622,21 +622,24 @@ class MainWindow(QMainWindow):
     def adb_path(self) -> str | None:
         return shutil.which("adb")
 
-    def run_async(self, command: list[str], on_success, timeout: int = 40) -> None:
+    def run_async(self, command: list[str], on_success, timeout: int = 40, on_error=None) -> None:
         if self.worker is not None and self.worker.isRunning():
             QMessageBox.information(self, APP_NAME, "Another ADB operation is still running. Please wait.")
             return
         self._set_busy(True)
         self.worker = Worker(command, timeout)
-        self.worker.done.connect(lambda result, error: self._finish_worker(result, error, on_success))
+        self.worker.done.connect(lambda result, error: self._finish_worker(result, error, on_success, on_error))
         self.worker.start()
 
-    def _finish_worker(self, result, error: str, callback) -> None:
+    def _finish_worker(self, result, error: str, callback, on_error=None) -> None:
         self._set_busy(False)
         if error:
             self.log_message("Error: " + error)
             self.statusBar().showMessage("Operation failed", 6000)
-            QMessageBox.warning(self, APP_NAME, error)
+            if on_error is not None:
+                on_error(error)
+            else:
+                QMessageBox.warning(self, APP_NAME, error)
             return
         callback(result or "")
 
