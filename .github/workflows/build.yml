@@ -99,6 +99,7 @@ jobs:
           sudo flatpak install -y flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
       - name: Build Flatpak bundle
         run: |
+          mkdir -p release
           flatpak-builder --force-clean --repo=flatpak-repo build-dir packaging/io.github.nightx24.ADBAppManager.yml
           flatpak build-bundle flatpak-repo release/ADB-App-Manager.flatpak io.github.nightx24.ADBAppManager
       - name: Upload Flatpak bundle
