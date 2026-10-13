@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
+    QStackedWidget, QFrame,
 )
 
 APP_NAME = "ADB App Manager"
@@ -66,54 +67,179 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         central = QWidget()
-        root = QVBoxLayout(central)
-        root.setContentsMargins(24, 20, 24, 18)
-        root.setSpacing(15)
+        shell = QVBoxLayout(central)
+        shell.setContentsMargins(0, 0, 0, 0)
+        shell.setSpacing(0)
 
-        header = QHBoxLayout()
-        title_box = QVBoxLayout()
+        # Compact top bar: product identity and connection controls.
+        top = QFrame()
+        top.setObjectName("topBar")
+        top_layout = QHBoxLayout(top)
+        top_layout.setContentsMargins(24, 17, 24, 17)
+        brand = QVBoxLayout()
         title = QLabel("ADB App Manager")
         title.setObjectName("title")
-        subtitle = QLabel("Manage Android packages through Android Debug Bridge")
+        subtitle = QLabel("Android device management, without the clutter")
         subtitle.setObjectName("subtitle")
-        title_box.addWidget(title)
-        title_box.addWidget(subtitle)
-        header.addLayout(title_box)
-        header.addStretch(1)
+        brand.addWidget(title)
+        brand.addWidget(subtitle)
+        top_layout.addLayout(brand)
+        top_layout.addStretch(1)
+
+        device_label = QLabel("DEVICE")
+        device_label.setObjectName("eyebrow")
+        top_layout.addWidget(device_label)
         self.device_combo = QComboBox()
         self.device_combo.setMinimumWidth(240)
         self.device_combo.currentIndexChanged.connect(self._device_changed)
-        header.addWidget(self.device_combo)
-        self.connect_btn = QPushButton("Refresh devices")
+        top_layout.addWidget(self.device_combo)
+        self.connect_btn = QPushButton("Refresh")
         self.connect_btn.clicked.connect(self.refresh_devices)
-        header.addWidget(self.connect_btn)
+        top_layout.addWidget(self.connect_btn)
         self.wifi_connect_btn = QPushButton("Connect Wi-Fi")
         self.wifi_connect_btn.clicked.connect(self.wireless_connect)
-        header.addWidget(self.wifi_connect_btn)
+        top_layout.addWidget(self.wifi_connect_btn)
         self.wifi_pair_btn = QPushButton("Pair Wi-Fi")
         self.wifi_pair_btn.clicked.connect(self.wireless_pair)
-        header.addWidget(self.wifi_pair_btn)
-        root.addLayout(header)
+        top_layout.addWidget(self.wifi_pair_btn)
+        shell.addWidget(top)
+
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        sidebar = QFrame()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(205)
+        nav = QVBoxLayout(sidebar)
+        nav.setContentsMargins(14, 22, 14, 18)
+        nav.setSpacing(8)
+        nav_label = QLabel("WORKSPACE")
+        nav_label.setObjectName("eyebrow")
+        nav.addWidget(nav_label)
+
+        self.page_stack = QStackedWidget()
+        self.nav_buttons = []
+        for label, icon_text, page_index in [
+            ("Overview", "⌂", 0), ("App library", "▦", 1), ("Device tools", "⚙", 2)
+        ]:
+            button = QPushButton(f"{icon_text}    {label}")
+            button.setObjectName("navButton")
+            button.setCheckable(True)
+            button.clicked.connect(lambda checked=False, idx=page_index: self._show_page(idx))
+            nav.addWidget(button)
+            self.nav_buttons.append(button)
+        nav.addStretch(1)
+        side_note = QLabel("ADB POWER TOOLS\n\nUse only with devices you own or are authorized to manage.")
+        side_note.setObjectName("sideNote")
+        side_note.setWordWrap(True)
+        nav.addWidget(side_note)
+        body.addWidget(sidebar)
+
+        content_area = QWidget()
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(24, 22, 24, 18)
+        content_layout.setSpacing(16)
+
+        # Overview page
+        self.overview_page = QWidget()
+        overview = QVBoxLayout(self.overview_page)
+        overview.setContentsMargins(0, 0, 0, 0)
+        overview.setSpacing(18)
+        welcome = QLabel("Device overview")
+        welcome.setObjectName("pageTitle")
+        welcome_sub = QLabel("A quick look at your connection and installed packages.")
+        welcome_sub.setObjectName("subtitle")
+        overview.addWidget(welcome)
+        overview.addWidget(welcome_sub)
+
+        cards = QHBoxLayout()
+        cards.setSpacing(12)
+        self.device_stat = QLabel("No device selected")
+        self.package_stat = QLabel("Not loaded")
+        self.third_party_stat = QLabel("—")
+        for heading, value, name in [
+            ("ACTIVE DEVICE", self.device_stat, "statDevice"),
+            ("INSTALLED PACKAGES", self.package_stat, "statPackages"),
+            ("THIRD-PARTY APPS", self.third_party_stat, "statThirdParty"),
+        ]:
+            card = QFrame()
+            card.setObjectName("statCard")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(18, 16, 18, 16)
+            cap = QLabel(heading)
+            cap.setObjectName("eyebrow")
+            value.setObjectName("statValue")
+            value.setWordWrap(True)
+            card_layout.addWidget(cap)
+            card_layout.addWidget(value)
+            cards.addWidget(card)
+        overview.addLayout(cards)
+
+        quick = QFrame()
+        quick.setObjectName("panel")
+        quick_layout = QVBoxLayout(quick)
+        quick_layout.setContentsMargins(20, 18, 20, 18)
+        quick_layout.setSpacing(12)
+        quick_title = QLabel("Quick actions")
+        quick_title.setObjectName("sectionTitle")
+        quick_layout.addWidget(quick_title)
+        quick_row = QHBoxLayout()
+        self.overview_load_btn = QPushButton("Load app library")
+        self.overview_load_btn.setObjectName("primaryButton")
+        self.overview_load_btn.clicked.connect(self.load_packages)
+        self.overview_apps_btn = QPushButton("Browse installed apps")
+        self.overview_apps_btn.clicked.connect(lambda: self._show_page(1))
+        self.overview_tools_btn = QPushButton("Open device tools")
+        self.overview_tools_btn.clicked.connect(lambda: self._show_page(2))
+        for button in (self.overview_load_btn, self.overview_apps_btn, self.overview_tools_btn):
+            quick_row.addWidget(button)
+        quick_layout.addLayout(quick_row)
+        overview.addWidget(quick)
+
+        connection_note = QLabel("Tip: Android 11+ uses Wireless Debugging pairing. Pairing and connection ports are different.")
+        connection_note.setObjectName("infoNote")
+        connection_note.setWordWrap(True)
+        overview.addWidget(connection_note)
+        overview.addStretch(1)
+        self.page_stack.addWidget(self.overview_page)
+
+        # App library page
+        self.apps_page = QWidget()
+        apps = QVBoxLayout(self.apps_page)
+        apps.setContentsMargins(0, 0, 0, 0)
+        apps.setSpacing(12)
+        app_heading = QHBoxLayout()
+        app_titles = QVBoxLayout()
+        app_title = QLabel("App library")
+        app_title.setObjectName("pageTitle")
+        app_subtitle = QLabel("Search, classify, and manage packages on the selected device.")
+        app_subtitle.setObjectName("subtitle")
+        app_titles.addWidget(app_title)
+        app_titles.addWidget(app_subtitle)
+        app_heading.addLayout(app_titles)
+        app_heading.addStretch(1)
+        self.export_btn = QPushButton("Export CSV")
+        self.export_btn.clicked.connect(self.export_csv)
+        app_heading.addWidget(self.export_btn)
+        apps.addLayout(app_heading)
 
         toolbar = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Search package names…")
+        self.search.setPlaceholderText("Search by package name…")
         self.search.textChanged.connect(self.render_packages)
         toolbar.addWidget(self.search, 1)
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["All packages", "Third-party apps", "System apps"])
         self.filter_combo.currentIndexChanged.connect(self.render_packages)
         toolbar.addWidget(self.filter_combo)
-        self.reload_btn = QPushButton("Load packages")
+        self.reload_btn = QPushButton("↻  Load packages")
+        self.reload_btn.setObjectName("primaryButton")
         self.reload_btn.clicked.connect(self.load_packages)
         toolbar.addWidget(self.reload_btn)
-        self.export_btn = QPushButton("Export CSV")
-        self.export_btn.clicked.connect(self.export_csv)
-        toolbar.addWidget(self.export_btn)
-        root.addLayout(toolbar)
+        apps.addLayout(toolbar)
 
         self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels(["Package name", "Type"])
+        self.table.setHorizontalHeaderLabels(["Package name", "Classification"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -122,9 +248,13 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._selection_changed)
-        root.addWidget(self.table, 1)
+        apps.addWidget(self.table, 1)
 
-        actions = QHBoxLayout()
+        actions_panel = QFrame()
+        actions_panel.setObjectName("panel")
+        actions = QHBoxLayout(actions_panel)
+        actions.setContentsMargins(12, 10, 12, 10)
+        actions.setSpacing(8)
         self.uninstall_btn = QPushButton("Uninstall for user")
         self.uninstall_btn.clicked.connect(self.uninstall_package)
         self.disable_btn = QPushButton("Disable")
@@ -140,30 +270,98 @@ class MainWindow(QMainWindow):
         for btn in (self.uninstall_btn, self.disable_btn, self.enable_btn, self.install_btn, self.clear_data_btn, self.ambridge_btn):
             btn.setEnabled(False)
             actions.addWidget(btn)
-        actions.addStretch(1)
-        root.addLayout(actions)
-        tools = QHBoxLayout()
-        for label, callback in [("Shell command", self.shell_command), ("Upload files", self.upload_files), ("Reboot", self.reboot_device), ("Enable TCP/IP (USB)", self.enable_legacy_tcpip), ("Save preset", self.save_preset), ("Load preset", self.load_preset)]:
-            button = QPushButton(label)
-            button.clicked.connect(callback)
-            tools.addWidget(button)
-        root.addLayout(tools)
+        apps.addWidget(actions_panel)
+        self.page_stack.addWidget(self.apps_page)
 
+        # Device tools page
+        self.tools_page = QWidget()
+        tools_page_layout = QVBoxLayout(self.tools_page)
+        tools_page_layout.setContentsMargins(0, 0, 0, 0)
+        tools_page_layout.setSpacing(16)
+        tools_title = QLabel("Device tools")
+        tools_title.setObjectName("pageTitle")
+        tools_subtitle = QLabel("Utilities for file transfer, troubleshooting, and device maintenance.")
+        tools_subtitle.setObjectName("subtitle")
+        tools_page_layout.addWidget(tools_title)
+        tools_page_layout.addWidget(tools_subtitle)
+
+        tools_grid = QHBoxLayout()
+        tools_grid.setSpacing(12)
+        for group_title, descriptions, entries in [
+            ("ADB console", "Run a command or transfer files.", [
+                ("Shell command", self.shell_command), ("Upload files", self.upload_files)
+            ]),
+            ("Connection", "Configure older TCP/IP debugging.", [
+                ("Enable TCP/IP (USB)", self.enable_legacy_tcpip)
+            ]),
+            ("Device maintenance", "Restart the selected device.", [
+                ("Reboot device", self.reboot_device)
+            ]),
+            ("Package presets", "Save or restore package selections.", [
+                ("Save preset", self.save_preset), ("Load preset", self.load_preset)
+            ]),
+        ]:
+            card = QFrame()
+            card.setObjectName("toolCard")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(16, 16, 16, 16)
+            card_layout.setSpacing(10)
+            title_label = QLabel(group_title)
+            title_label.setObjectName("sectionTitle")
+            desc_label = QLabel(descriptions)
+            desc_label.setObjectName("subtitle")
+            desc_label.setWordWrap(True)
+            card_layout.addWidget(title_label)
+            card_layout.addWidget(desc_label)
+            for label, callback in entries:
+                button = QPushButton(label)
+                button.clicked.connect(callback)
+                card_layout.addWidget(button)
+            card_layout.addStretch(1)
+            tools_grid.addWidget(card)
+        tools_page_layout.addLayout(tools_grid)
+        tools_page_layout.addStretch(1)
+        self.page_stack.addWidget(self.tools_page)
+
+        content_layout.addWidget(self.page_stack, 1)
+        body.addWidget(content_area, 1)
+        shell.addLayout(body, 1)
+
+        log_panel = QFrame()
+        log_panel.setObjectName("logPanel")
+        log_layout = QVBoxLayout(log_panel)
+        log_layout.setContentsMargins(24, 10, 24, 10)
+        log_layout.setSpacing(5)
+        log_header = QHBoxLayout()
+        log_title = QLabel("ACTIVITY")
+        log_title.setObjectName("eyebrow")
+        log_header.addWidget(log_title)
+        log_header.addStretch(1)
+        log_hint = QLabel("Recent ADB operations")
+        log_hint.setObjectName("subtitle")
+        log_header.addWidget(log_hint)
+        log_layout.addLayout(log_header)
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setMaximumHeight(125)
-        self.log.setPlaceholderText("Activity log")
-        root.addWidget(self.log)
+        self.log.setMaximumHeight(86)
+        self.log.setPlaceholderText("Activity log — device actions and ADB responses appear here.")
+        log_layout.addWidget(self.log)
+        shell.addWidget(log_panel)
+
         self.setCentralWidget(central)
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready. Connect an Android device with USB debugging enabled.")
-
         refresh_action = QAction("Refresh devices", self)
         refresh_action.triggered.connect(self.refresh_devices)
         self.menuBar().addMenu("Device").addAction(refresh_action)
+        self._show_page(0)
+
+    def _show_page(self, index: int) -> None:
+        self.page_stack.setCurrentIndex(index)
+        for i, button in enumerate(self.nav_buttons):
+            button.setChecked(i == index)
 
     def _style_ui(self) -> None:
-        # Modern, high-contrast dark UI with consistent spacing and accessible focus states.
         self.setStyleSheet("""
             * { font-family: "Inter", "Segoe UI", "Noto Sans", sans-serif; font-size: 13px; }
             QMainWindow, QWidget { background: #0b1020; color: #e7ecf5; }
@@ -173,11 +371,21 @@ class MainWindow(QMainWindow):
             QMenu { border: 1px solid #2b3850; padding: 5px; }
             QMenu::item { padding: 7px 24px; border-radius: 5px; }
             QMenu::item:selected { background: #263b60; }
+            QFrame#topBar { background: #0e1728; border-bottom: 1px solid #243149; }
+            QFrame#sidebar { background: #0d1525; border-right: 1px solid #243149; }
+            QFrame#logPanel { background: #0e1728; border-top: 1px solid #243149; }
             QLabel { background: transparent; }
-            QLabel#title { font-size: 27px; font-weight: 750; color: #f8fafc; padding: 2px 0; }
+            QLabel#title { font-size: 25px; font-weight: 750; color: #f8fafc; }
+            QLabel#pageTitle { font-size: 24px; font-weight: 700; color: #f8fafc; }
             QLabel#subtitle { color: #94a3b8; font-size: 12px; }
+            QLabel#eyebrow { color: #7890b2; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+            QLabel#sideNote { color: #71819b; font-size: 11px; padding: 10px 3px; }
+            QLabel#statValue { color: #f1f5f9; font-size: 20px; font-weight: 700; }
+            QLabel#sectionTitle { color: #f1f5f9; font-size: 15px; font-weight: 700; }
+            QLabel#infoNote { color: #9bb8e6; background: #12213a; border: 1px solid #263f66; border-radius: 9px; padding: 13px; }
+            QFrame#statCard, QFrame#panel, QFrame#toolCard { background: #111b2d; border: 1px solid #263650; border-radius: 12px; }
             QLineEdit, QComboBox, QTextEdit {
-                background: #111a2b; color: #e7ecf5; border: 1px solid #293750;
+                background: #101a2b; color: #e7ecf5; border: 1px solid #293750;
                 border-radius: 9px; padding: 9px 11px; selection-background-color: #315fbd;
             }
             QLineEdit:hover, QComboBox:hover, QTextEdit:hover { border-color: #3b4e70; }
@@ -193,19 +401,18 @@ class MainWindow(QMainWindow):
             QTableWidget::item { padding: 8px 10px; border-bottom: 1px solid #1d293d; }
             QTableWidget::item:hover { background: #192941; }
             QHeaderView { background: #131e31; }
-            QHeaderView::section {
-                background: #131e31; color: #9fb1ca; padding: 11px 10px;
-                border: none; border-bottom: 1px solid #2b3952; font-weight: 700;
-            }
+            QHeaderView::section { background: #131e31; color: #9fb1ca; padding: 11px 10px; border: none; border-bottom: 1px solid #2b3952; font-weight: 700; }
             QTableCornerButton::section { background: #131e31; border: none; }
-            QPushButton {
-                background: #17243a; color: #dbe7f8; border: 1px solid #30415e;
-                border-radius: 9px; padding: 9px 13px; font-weight: 600;
-            }
+            QPushButton { background: #17243a; color: #dbe7f8; border: 1px solid #30415e; border-radius: 9px; padding: 9px 12px; font-weight: 600; }
             QPushButton:hover { background: #223653; border-color: #49678f; }
             QPushButton:pressed { background: #132037; }
             QPushButton:focus { border: 1px solid #60a5fa; }
             QPushButton:disabled { color: #64748b; background: #111827; border-color: #202b3d; }
+            QPushButton#primaryButton { background: #2563eb; color: #ffffff; border: 1px solid #3b82f6; }
+            QPushButton#primaryButton:hover { background: #3478f6; }
+            QPushButton#navButton { text-align: left; padding: 12px 11px; background: transparent; border: 1px solid transparent; color: #9cabc2; }
+            QPushButton#navButton:hover { background: #14213a; color: #e2e8f0; }
+            QPushButton#navButton:checked { background: #1b3152; border: 1px solid #2c4e7d; color: #dbeafe; }
             QStatusBar { background: #0e1727; color: #a8b7cc; border-top: 1px solid #233149; }
             QStatusBar::item { border: none; }
             QScrollBar:vertical { background: #0f1727; width: 12px; margin: 2px; }
@@ -215,7 +422,6 @@ class MainWindow(QMainWindow):
         """)
         self.table.verticalHeader().setDefaultSectionSize(38)
         self.table.setShowGrid(False)
-        self.table.setWordWrap(False)
 
     def log_message(self, message: str) -> None:
         stamp = datetime.now().strftime("%H:%M:%S")
@@ -280,7 +486,10 @@ class MainWindow(QMainWindow):
 
     def _device_changed(self) -> None:
         self.device_id = self.device_combo.currentData()
+        self.device_stat.setText(self.device_id or "No device selected")
         self.packages = []
+        self.package_stat.setText("Not loaded")
+        self.third_party_stat.setText("—")
         self.render_packages()
         self._selection_changed()
         if self.device_id and self.device_id not in self._ambridge_prompted_devices:
@@ -328,6 +537,9 @@ class MainWindow(QMainWindow):
             key=lambda p: p.name.casefold(),
         )
         self.render_packages()
+        self.package_stat.setText(f"{len(self.packages):,}")
+        self.third_party_stat.setText(f"{len(self.third_party_names):,}")
+        self.device_stat.setText(self.device_id or "No device selected")
         self.log_message(f"Loaded {len(self.packages)} package names from {self.device_id}.")
         self.statusBar().showMessage(f"Loaded {len(self.packages)} packages", 5000)
 
