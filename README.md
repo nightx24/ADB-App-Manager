@@ -10,6 +10,9 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Disable and re-enable packages
 - Export the package inventory to CSV
 - Activity log and confirmation dialogs for potentially disruptive actions
+- Multi-select batch enable, disable, and uninstall operations
+- Batch APK installation, multi-file upload to Downloads, and package data clearing
+- Interactive ADB shell, device reboot modes, and package-list presets
 - Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
 
 ## Downloads
