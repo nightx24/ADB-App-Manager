@@ -22,9 +22,13 @@ A cross-platform Android package manager and debloating utility for Windows and 
 Open the [GitHub Actions builds](https://github.com/nightx24/ADB-App-Manager/actions) and download the artifact from the latest successful run. Tagged releases (`v*`) also publish release files.
 
 - **Windows:** `ADB-App-Manager-Windows.zip` — extract and run `ADB-App-Manager.exe`.
-- **Linux AppImage:** `ADB-App-Manager-x86_64.AppImage` — mark it executable, then launch it.
-- **Linux portable binary:** `ADB-App-Manager-Linux.tar.gz` — extract and run `ADB-App-Manager`.
-- **Linux Flatpak:** `ADB-App-Manager.flatpak` — install using the command below.
+- **Linux AppImage (recommended):** `ADB-App-Manager-x86_64.AppImage` — works on many x86_64 Linux distributions; mark it executable, then launch it.
+- **Debian/Ubuntu/Linux Mint:** `ADB-App-Manager-amd64.deb` — install with `sudo apt install ./ADB-App-Manager-amd64.deb`.
+- **Fedora/RHEL-compatible systems:** `ADB-App-Manager-x86_64.rpm` — install with `sudo dnf install ./ADB-App-Manager-x86_64.rpm`.
+- **Portable Linux binary:** `ADB-App-Manager-Linux.tar.gz` — extract and run `ADB-App-Manager`.
+- **Flatpak:** `ADB-App-Manager.flatpak` — install using the command below.
+
+Linux downloads currently target **x86_64/amd64 PCs**. The AppImage is the easiest option across distributions; the `.deb` and `.rpm` packages are for their matching package-manager families. All options still require a working ADB installation or host ADB access. The standalone binary and distro packages are not guaranteed to run on every Linux release because system libraries and desktop environments vary.
 
 Install a Flatpak bundle:
 ```bash
