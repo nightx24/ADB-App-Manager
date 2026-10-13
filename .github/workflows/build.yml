@@ -1,0 +1,59 @@
+name: Build desktop releases
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: ADB-App-Manager-Windows
+            executable: dist/ADB-App-Manager.exe
+          - os: ubuntu-22.04
+            artifact_name: ADB-App-Manager-Linux
+            executable: dist/ADB-App-Manager
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pyinstaller
+      - name: Build executable
+        run: python -m PyInstaller --noconfirm --clean --windowed --name ADB-App-Manager main.py
+      - name: Package executable
+        shell: bash
+        run: |
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cd dist && 7z a "../release/${{ matrix.artifact_name }}.zip" ADB-App-Manager.exe
+          else
+            cp "${{ matrix.executable }}" release/ADB-App-Manager
+            chmod +x release/ADB-App-Manager
+            tar -C release -czf "release/${{ matrix.artifact_name }}.tar.gz" ADB-App-Manager
+          fi
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release/*
+          if-no-files-found: error
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
