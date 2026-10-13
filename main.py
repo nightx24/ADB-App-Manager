@@ -56,6 +56,7 @@ class MainWindow(QMainWindow):
         self.resize(1080, 720)
         self.setMinimumSize(760, 520)
         self.packages: list[Package] = []
+        self.third_party_names: set[str] = set()
         self.device_id: str | None = None
         self.worker: Worker | None = None
         self._build_ui()
@@ -235,18 +236,34 @@ class MainWindow(QMainWindow):
         self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages"], self._packages_loaded, timeout=60)
 
     def _packages_loaded(self, output: str) -> None:
-        packages: list[Package] = []
+        names = []
         for line in output.splitlines():
             value = line.strip()
-            if not value.startswith("package:"):
-                continue
-            name = value[len("package:"):].strip()
-            if not name:
-                continue
-            # Android's -3 list is queried separately when needed; default list marks type heuristically.
-            kind = "System / vendor" if name.startswith(("com.android.", "android.", "com.google.android.")) else "Other / vendor"
-            packages.append(Package(name, kind))
-        self.packages = sorted(packages, key=lambda p: p.name.casefold())
+            if value.startswith("package:"):
+                name = value[len("package:"):].strip()
+                if name:
+                    names.append(name)
+        self._all_package_names = names
+        adb = self.adb_path()
+        if not adb or not self.device_id:
+            return
+        self.run_async(
+            [adb, "-s", self.device_id, "shell", "pm", "list", "packages", "-3"],
+            self._third_party_loaded,
+            timeout=60,
+        )
+
+    def _third_party_loaded(self, output: str) -> None:
+        self.third_party_names = {
+            line.strip()[len("package:"):].strip()
+            for line in output.splitlines()
+            if line.strip().startswith("package:")
+        }
+        self.packages = sorted(
+            [Package(name, "Third-party" if name in self.third_party_names else "System / preinstalled")
+             for name in self._all_package_names],
+            key=lambda p: p.name.casefold(),
+        )
         self.render_packages()
         self.log_message(f"Loaded {len(self.packages)} package names from {self.device_id}.")
         self.statusBar().showMessage(f"Loaded {len(self.packages)} packages", 5000)
@@ -258,11 +275,10 @@ class MainWindow(QMainWindow):
         for package in self.packages:
             if needle and needle not in package.name.casefold():
                 continue
-            # The classification is intentionally conservative; Android vendors use many namespaces.
-            is_system = package.name.startswith(("com.android.", "android.", "com.google.android."))
-            if mode == 1 and is_system:
+            is_third_party = package.name in self.third_party_names
+            if mode == 1 and not is_third_party:
                 continue
-            if mode == 2 and not is_system:
+            if mode == 2 and is_third_party:
                 continue
             rows.append(package)
         self.table.setRowCount(len(rows))
