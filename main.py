@@ -1125,7 +1125,8 @@ class MainWindow(QMainWindow):
             installed = "package:com.nightlab.ambridge" in output.splitlines()
             if installed:
                 self.log_message("AMBridge companion detected on the selected device.")
-                self.statusBar().showMessage("AMBridge is installed. Use Load packages to refresh inventory.", 6000)
+                self.statusBar().showMessage("AMBridge is installed. Loading app names and icons…", 6000)
+                self.load_packages()
             elif prompt_if_missing:
                 answer = QMessageBox.question(
                     self, "AMBridge is not installed",
@@ -1228,7 +1229,7 @@ class MainWindow(QMainWindow):
         if not self._confirmed(
             "Install AMBridge?",
             "Install the selected companion APK on the connected Android device?\n\n"
-            "Android 6 or newer is required. This app does not verify the APK's publisher signature.",
+            "Android 10 or newer is required. This app does not verify the APK's publisher signature.",
         ):
             return
         self.run_async(cmd, lambda out: self._ambridge_install_finished(out), timeout=180)
@@ -1239,8 +1240,9 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "AMBridge installed",
                 "The APK installer reported success. Confirm the installed package ID is com.nightlab.ambridge.\n\n"
-                "The desktop app will now try to open AMBridge and retrieve app names and icons. Keep the phone unlocked during the first connection."
+                "The desktop app will load the package list and then request app names and icons. Keep the phone unlocked during the first connection."
             )
+            self.load_packages()
 
     def _device_adb(self, *args: str) -> list[str] | None:
         adb = self.adb_path()
