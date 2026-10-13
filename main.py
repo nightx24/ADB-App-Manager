@@ -21,10 +21,50 @@ from PySide6.QtWidgets import (
 APP_NAME = "ADB App Manager"
 
 
+# Conservative, exact-package recommendations adapted from public debloat research.
+# These are conditional suggestions, not guarantees. Never auto-remove any package.
+DEBLOAT_RECOMMENDATIONS: dict[str, tuple[str, str]] = {
+    "org.lineageos.jelly": (
+        "Optional — review first",
+        "LineageOS browser. Remove only if you have another working browser and do not need this one.",
+    ),
+    "org.lineageos.recorder": (
+        "Optional — review first",
+        "LineageOS voice recorder. Remove only if you do not use it or have another recorder.",
+    ),
+    "org.lineageos.twelve": (
+        "Optional — review first",
+        "LineageOS music player. Remove only if you use another music player.",
+    ),
+    "org.lineageos.camelot": (
+        "Optional — review first",
+        "LineageOS PDF viewer. Remove only if another app can open your PDF files.",
+    ),
+    "org.lineageos.aperture": (
+        "Advanced — verify first",
+        "LineageOS camera app. Removing it without a working replacement can leave you without a camera app.",
+    ),
+    "org.lineageos.etar": (
+        "Advanced — verify first",
+        "LineageOS calendar. Removing it without a replacement can remove calendar functionality.",
+    ),
+    "org.lineageos.glimpse": (
+        "Advanced — verify first",
+        "LineageOS gallery. Removing it without a replacement can leave you without a gallery app.",
+    ),
+    "com.android.providers.partnerbrowsercustomizations": (
+        "Optional — review first",
+        "Chrome partner-browser customizations. Relevance depends on the ROM and browser setup; do not remove blindly.",
+    ),
+}
+
+
 @dataclass
 class Package:
     name: str
     kind: str
+    recommendation: str = "Not listed"
+    recommendation_note: str = ""
 
 
 class Worker(QThread):
@@ -256,7 +296,7 @@ class MainWindow(QMainWindow):
         self.search.textChanged.connect(self.render_packages)
         toolbar.addWidget(self.search, 1)
         self.filter_combo = QComboBox()
-        self.filter_combo.addItems(["All packages", "Third-party apps", "System apps"])
+        self.filter_combo.addItems(["All packages", "Third-party apps", "System apps", "Recommended (review first)"])
         self.filter_combo.currentIndexChanged.connect(self.render_packages)
         toolbar.addWidget(self.filter_combo)
         self.reload_btn = QPushButton("↻  Load packages")
@@ -265,8 +305,8 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.reload_btn)
         apps.addLayout(toolbar)
 
-        self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels(["Package name", "Classification"])
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Package name", "Classification", "Debloat guidance"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -274,6 +314,7 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._selection_changed)
         apps.addWidget(self.table, 1)
 
@@ -559,8 +600,14 @@ class MainWindow(QMainWindow):
             if line.strip().startswith("package:")
         }
         self.packages = sorted(
-            [Package(name, "Third-party" if name in self.third_party_names else "System / preinstalled")
-             for name in self._all_package_names],
+            [
+                Package(
+                    name,
+                    "Third-party" if name in self.third_party_names else "System / preinstalled",
+                    *DEBLOAT_RECOMMENDATIONS.get(name, ("Not listed", "")),
+                )
+                for name in self._all_package_names
+            ],
             key=lambda p: p.name.casefold(),
         )
         self.render_packages()
@@ -582,13 +629,19 @@ class MainWindow(QMainWindow):
                 continue
             if mode == 2 and is_third_party:
                 continue
+            if mode == 3 and package.recommendation == "Not listed":
+                continue
             rows.append(package)
         self.table.setRowCount(len(rows))
         for index, package in enumerate(rows):
             name_item = QTableWidgetItem(package.name)
             name_item.setData(Qt.ItemDataRole.UserRole, package.name)
+            name_item.setToolTip(package.recommendation_note or "No conservative recommendation is available for this package.")
             self.table.setItem(index, 0, name_item)
             self.table.setItem(index, 1, QTableWidgetItem(package.kind))
+            recommendation_item = QTableWidgetItem(package.recommendation)
+            recommendation_item.setToolTip(package.recommendation_note or "This package is not in the conservative recommendation list.")
+            self.table.setItem(index, 2, recommendation_item)
         self.statusBar().showMessage(f"Showing {len(rows)} of {len(self.packages)} packages")
         self._selection_changed()
 
