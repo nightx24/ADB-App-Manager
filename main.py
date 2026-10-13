@@ -1379,9 +1379,11 @@ class MainWindow(QMainWindow):
         reinstall.setChecked(True)
         downgrade = QCheckBox("Allow downgrade (-d)")
         grant = QCheckBox("Grant runtime permissions (-g)")
+        all_devices = QCheckBox("Install on all connected devices")
         options_row.addWidget(reinstall)
         options_row.addWidget(downgrade)
         options_row.addWidget(grant)
+        options_row.addWidget(all_devices)
         layout.addLayout(options_row)
 
         buttons = QHBoxLayout()
@@ -1482,7 +1484,18 @@ class MainWindow(QMainWindow):
             if not serial:
                 QMessageBox.warning(dialog, APP_NAME, "Select a connected Android device first.")
                 return
-            target_desc = f"{len(selected_entries)} APK file(s) on {serial}"
+            targets = [serial]
+            if all_devices.isChecked():
+                try:
+                    scan = subprocess.run([adb, "devices"], capture_output=True, text=True, timeout=20, env=_host_tool_env())
+                    targets = [line.split()[0] for line in scan.stdout.splitlines()[1:] if len(line.split()) >= 2 and line.split()[1] == "device"]
+                except (OSError, subprocess.SubprocessError) as exc:
+                    QMessageBox.warning(dialog, APP_NAME, f"Could not list connected devices: {exc}")
+                    return
+                if not targets:
+                    QMessageBox.information(dialog, APP_NAME, "No authorized Android devices are connected.")
+                    return
+            target_desc = f"{len(selected_entries)} APK file(s) on {len(targets)} device(s): {', '.join(targets)}"
             if not self._confirmed("Confirm APK installation", f"Install {target_desc}? Only install APKs you trust."):
                 return
             busy["cancel"] = False
@@ -1494,8 +1507,7 @@ class MainWindow(QMainWindow):
 
             def next_item() -> None:
                 if busy["cancel"]:
-                    remaining = selected_entries[current["index"]:]
-                    for entry in remaining:
+                    for entry in selected_entries[current["index"]:]:
                         update_item(entry["path"], "Skipped", "Cancelled before install")
                         results["skipped"] += 1
                     finish()
@@ -1506,10 +1518,8 @@ class MainWindow(QMainWindow):
                 entry = selected_entries[current["index"]]
                 path = entry["path"]
                 current["index"] += 1
-                update_item(path, "Installing")
                 progress.setValue(int((current["index"] - 1) * 100 / max(1, len(selected_entries))))
                 status.setText(f"Installing {current['index']} of {len(selected_entries)}: {Path(path).name}")
-                self.log_message(f"APK queue: installing {Path(path).name} on {serial}")
                 args = ["install"]
                 if reinstall.isChecked():
                     args.append("-r")
@@ -1517,51 +1527,72 @@ class MainWindow(QMainWindow):
                     args.append("-d")
                 if grant.isChecked():
                     args.append("-g")
+
                 if split_mode:
-                    # Split bundles are submitted together in a single ADB command below.
-                    install_split()
+                    paths = [e["path"] for e in selected_entries]
+                    split_args = ["install-multiple"]
+                    if reinstall.isChecked():
+                        split_args.append("-r")
+                    if downgrade.isChecked():
+                        split_args.append("-d")
+                    if grant.isChecked():
+                        split_args.append("-g")
+                    for item in selected_entries:
+                        update_item(item["path"], "Installing", "Split bundle")
+                    device_index = {"value": 0}
+                    device_results = {"ok": True, "messages": []}
+                    def split_next_device() -> None:
+                        if device_index["value"] >= len(targets):
+                            result = " | ".join(device_results["messages"])
+                            for item in selected_entries:
+                                update_item(item["path"], "Installed" if device_results["ok"] else "Failed", result)
+                            results["success" if device_results["ok"] else "failed"] += len(selected_entries)
+                            current["index"] = len(selected_entries)
+                            self.log_message("Split APK queue result: " + result)
+                            finish()
+                            return
+                        target = targets[device_index["value"]]
+                        device_index["value"] += 1
+                        command = [adb, "-s", target, *split_args, *paths]
+                        def split_done(output: str) -> None:
+                            result = output.strip() or "(no output)"
+                            ok = "success" in result.lower()
+                            device_results["ok"] = device_results["ok"] and ok
+                            device_results["messages"].append(f"{target}: {self._explain_adb_error(result)}")
+                            split_next_device()
+                        self.run_async(command, split_done, timeout=360, on_error=lambda err: split_done(err))
+                    split_next_device()
                     return
-                command = [adb, "-s", serial, *args, path]
 
-                def completed(output: str) -> None:
-                    result = output.strip() or "(no output)"
-                    ok = "success" in result.lower()
-                    update_item(path, "Installed" if ok else "Failed", result)
-                    results["success" if ok else "failed"] += 1
-                    self.log_message(f"APK queue {Path(path).name}: {result}")
-                    next_item()
-                self.run_async(command, completed, timeout=240, on_error=lambda err: completed('ADB error: ' + err))
-
-            def install_split() -> None:
-                paths = [e["path"] for e in selected_entries]
-                args = ["install-multiple"]
-                if reinstall.isChecked():
-                    args.append("-r")
-                if downgrade.isChecked():
-                    args.append("-d")
-                if grant.isChecked():
-                    args.append("-g")
-                for entry in selected_entries:
-                    update_item(entry["path"], "Installing", "Part of split bundle")
-                progress.setValue(20)
-                command = [adb, "-s", serial, *args, *paths]
-                def completed(output: str) -> None:
-                    result = output.strip() or "(no output)"
-                    ok = "success" in result.lower()
-                    for entry in selected_entries:
-                        update_item(entry["path"], "Installed" if ok else "Failed", result)
-                    results["success" if ok else "failed"] += len(selected_entries)
-                    self.log_message("Split APK queue result: " + result)
-                    current["index"] = len(selected_entries)
-                    finish()
-                self.run_async(command, completed, timeout=360, on_error=lambda err: completed('ADB error: ' + err))
+                device_index = {"value": 0}
+                device_results = {"ok": True, "messages": []}
+                update_item(path, "Installing")
+                def install_next_device() -> None:
+                    if device_index["value"] >= len(targets):
+                        result = " | ".join(device_results["messages"])
+                        update_item(path, "Installed" if device_results["ok"] else "Failed", result)
+                        results["success" if device_results["ok"] else "failed"] += 1
+                        self.log_message(f"APK queue {Path(path).name}: {result}")
+                        next_item()
+                        return
+                    target = targets[device_index["value"]]
+                    device_index["value"] += 1
+                    command = [adb, "-s", target, *args, path]
+                    def install_done(output: str) -> None:
+                        result = output.strip() or "(no output)"
+                        ok = "success" in result.lower()
+                        device_results["ok"] = device_results["ok"] and ok
+                        device_results["messages"].append(f"{target}: {self._explain_adb_error(result)}")
+                        install_next_device()
+                    self.run_async(command, install_done, timeout=240, on_error=lambda err: install_done(err))
+                install_next_device()
 
             def finish() -> None:
                 progress.setValue(100 if not busy["cancel"] else progress.value())
                 set_running(False)
                 status.setText(
                     f"Finished — {results['success']} installed, {results['failed']} failed, {results['skipped']} skipped. "
-                    "Select a failed row and use Retry failed to retry failures."
+                    "Use Retry failed to retry failed items."
                 )
                 self.log_message(
                     f"APK batch summary: {results['success']} installed, {results['failed']} failed, {results['skipped']} skipped."
@@ -1571,7 +1602,7 @@ class MainWindow(QMainWindow):
                     self._app_data_dir.mkdir(parents=True, exist_ok=True)
                     report = self._app_data_dir / f"apk-install-log-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
                     report.write_text(
-                        f"Device: {serial}\nDate: {datetime.now().isoformat()}\n"
+                        f"Devices: {', '.join(targets)}\nDate: {datetime.now().isoformat()}\n"
                         + "\n".join(f"{e['status']}: {e['path']} :: {e['detail']}" for e in entries),
                         encoding="utf-8",
                     )
