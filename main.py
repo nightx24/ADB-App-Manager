@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import base64
 import csv
 import json
 import os
 import shutil
 import subprocess
 import sys
+import time
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal, QStandardPaths
-from PySide6.QtGui import QAction, QFont
+from PySide6.QtGui import QAction, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
@@ -81,6 +84,8 @@ class Package:
     kind: str
     recommendation: str = "Not listed"
     recommendation_note: str = ""
+    label: str = ""
+    icon_base64: str = ""
 
 
 class Worker(QThread):
@@ -133,6 +138,53 @@ class Worker(QThread):
             self.done.emit(None, str(exc))
 
 
+class InventoryWorker(QThread):
+    """Fetch AMBridge metadata over an ADB-forwarded loopback HTTP connection."""
+    done = Signal(object, str)
+
+    def __init__(self, adb: str, serial: str, timeout: int = 100):
+        super().__init__()
+        self.adb = adb
+        self.serial = serial
+        self.timeout = timeout
+
+    def run(self) -> None:
+        local_port = None
+        prefix = [self.adb, "-s", self.serial]
+        try:
+            launch = subprocess.run(prefix + ["shell", "am", "start", "-n", "com.nightlab.ambridge/.MainActivity"], capture_output=True, text=True, timeout=30)
+            if launch.returncode != 0 or "error" in (launch.stderr + launch.stdout).lower():
+                raise RuntimeError((launch.stderr or launch.stdout or "Could not open NightLab AMBridge").strip())
+            forward = subprocess.run(prefix + ["forward", "tcp:0", "tcp:39876"], capture_output=True, text=True, timeout=20)
+            if forward.returncode != 0:
+                raise RuntimeError((forward.stderr or forward.stdout or "ADB port forwarding failed").strip())
+            try:
+                local_port = int(forward.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                raise RuntimeError("ADB did not return a usable local port for AMBridge forwarding.")
+            last_error = "AMBridge service did not become ready."
+            for _ in range(24):
+                try:
+                    request = urllib.request.Request(f"http://127.0.0.1:{local_port}/v1/apps", headers={"Accept": "application/json", "Connection": "close"})
+                    with urllib.request.urlopen(request, timeout=8) as response:
+                        if response.status != 200:
+                            raise RuntimeError(f"AMBridge returned HTTP {response.status}.")
+                        payload = json.loads(response.read().decode("utf-8"))
+                    if payload.get("schemaVersion") != 1 or not isinstance(payload.get("applications"), list):
+                        raise RuntimeError("AMBridge returned an unsupported inventory format.")
+                    self.done.emit(payload, "")
+                    return
+                except Exception as exc:
+                    last_error = str(exc)
+                    time.sleep(0.5)
+            raise RuntimeError(last_error + " Keep the phone unlocked, reopen AMBridge, and retry.")
+        except Exception as exc:
+            self.done.emit(None, str(exc))
+        finally:
+            if local_port is not None:
+                subprocess.run(prefix + ["forward", "--remove", f"tcp:{local_port}"], capture_output=True, text=True, timeout=15)
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -141,6 +193,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(760, 520)
         self.packages: list[Package] = []
         self.third_party_names: set[str] = set()
+        self._ambridge_metadata: dict[str, dict] = {}
         self.device_id: str | None = None
         self._history_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "uninstall-history.json"
         self._ambridge_prompted_devices: set[str] = set()
@@ -315,7 +368,7 @@ class MainWindow(QMainWindow):
 
         toolbar = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Search by package name…")
+        self.search.setPlaceholderText("Search by app name or package ID…")
         self.search.textChanged.connect(self.render_packages)
         toolbar.addWidget(self.search, 1)
         self.filter_combo = QComboBox()
@@ -329,7 +382,7 @@ class MainWindow(QMainWindow):
         apps.addLayout(toolbar)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Package name", "Classification", "Debloat guidance"])
+        self.table.setHorizontalHeaderLabels(["App name / package", "Classification", "Debloat guidance"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -579,6 +632,7 @@ class MainWindow(QMainWindow):
         self.device_id = self.device_combo.currentData()
         self.device_stat.setText(self.device_id or "No device selected")
         self.packages = []
+        self._ambridge_metadata = {}
         self.package_stat.setText("Not loaded")
         self.third_party_stat.setText("—")
         self.render_packages()
@@ -617,10 +671,12 @@ class MainWindow(QMainWindow):
                     name,
                     "Third-party" if name in self.third_party_names else "System / preinstalled",
                     *DEBLOAT_RECOMMENDATIONS.get(name, ("Not listed", "")),
+                    label=self._ambridge_metadata.get(name, {}).get("label", ""),
+                    icon_base64=self._ambridge_metadata.get(name, {}).get("iconPngBase64", ""),
                 )
                 for name in self._all_package_names
             ],
-            key=lambda p: p.name.casefold(),
+            key=lambda p: (p.label or p.name).casefold(),
         )
         self.render_packages()
         self.package_stat.setText(f"{len(self.packages):,}")
@@ -628,13 +684,16 @@ class MainWindow(QMainWindow):
         self.device_stat.setText(self.device_id or "No device selected")
         self.log_message(f"Loaded {len(self.packages)} package names from {self.device_id}.")
         self.statusBar().showMessage(f"Loaded {len(self.packages)} packages", 5000)
+        if "com.nightlab.ambridge" in self._all_package_names:
+            self.load_ambridge_inventory(show_errors=False)
 
     def render_packages(self, *_args) -> None:
         needle = self.search.text().strip().casefold()
         mode = self.filter_combo.currentIndex()
         rows = []
         for package in self.packages:
-            if needle and needle not in package.name.casefold():
+            searchable = f"{package.label} {package.name}".casefold()
+            if needle and needle not in searchable:
                 continue
             is_third_party = package.name in self.third_party_names
             if mode == 1 and not is_third_party:
@@ -646,9 +705,16 @@ class MainWindow(QMainWindow):
             rows.append(package)
         self.table.setRowCount(len(rows))
         for index, package in enumerate(rows):
-            name_item = QTableWidgetItem(package.name)
+            name_item = QTableWidgetItem(package.label or package.name)
             name_item.setData(Qt.ItemDataRole.UserRole, package.name)
-            name_item.setToolTip(package.recommendation_note or "No conservative recommendation is available for this package.")
+            name_item.setToolTip(f"Package: {package.name}\n" + (package.recommendation_note or "No conservative recommendation is available for this package."))
+            if package.icon_base64:
+                try:
+                    pixmap = QPixmap()
+                    if pixmap.loadFromData(base64.b64decode(package.icon_base64, validate=True)):
+                        name_item.setIcon(QIcon(pixmap))
+                except (ValueError, TypeError):
+                    pass
             self.table.setItem(index, 0, name_item)
             self.table.setItem(index, 1, QTableWidgetItem(package.kind))
             recommendation_item = QTableWidgetItem(package.recommendation)
@@ -1075,19 +1141,71 @@ class MainWindow(QMainWindow):
                 self.log_message("NightLab AMBridge is not installed. Use AMBridge helper to select a trusted companion APK.")
         self.run_async(cmd, checked, timeout=45)
 
+    def load_ambridge_inventory(self, show_errors: bool = True) -> None:
+        """Ask the Android companion for labels and icons using ADB port forwarding."""
+        if not self.device_id:
+            if show_errors:
+                QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        if "com.nightlab.ambridge" not in getattr(self, "_all_package_names", []):
+            if show_errors:
+                QMessageBox.information(self, "NightLab AMBridge", "NightLab AMBridge is not installed. Use AMBridge helper to install the companion APK first.")
+            return
+        adb = self.adb_path()
+        if not adb:
+            if show_errors:
+                QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        serial = self.device_id
+        if self.worker is not None and self.worker.isRunning():
+            if show_errors:
+                QMessageBox.information(self, APP_NAME, "Another ADB operation is still running. Please wait.")
+            return
+        self._set_busy(True)
+        self.log_message("Requesting app names and icons from NightLab AMBridge…")
+        self.worker = InventoryWorker(adb, serial)
+        self.worker.done.connect(lambda result, error: self._ambridge_inventory_finished(result, error, serial, show_errors))
+        self.worker.start()
+
+    def _ambridge_inventory_finished(self, result, error: str, serial: str, show_errors: bool) -> None:
+        self._set_busy(False)
+        if serial != self.device_id:
+            return
+        if error:
+            self.log_message("AMBridge inventory unavailable: " + error)
+            if show_errors:
+                QMessageBox.warning(self, "NightLab AMBridge", "Could not retrieve app names and icons. Make sure the phone is unlocked and AMBridge can open, then retry.\n\n" + error)
+            return
+        apps = result.get("applications", []) if isinstance(result, dict) else []
+        self._ambridge_metadata = {
+            item.get("packageName"): item for item in apps
+            if isinstance(item, dict) and isinstance(item.get("packageName"), str)
+        }
+        for package in self.packages:
+            item = self._ambridge_metadata.get(package.name, {})
+            package.label = item.get("label", "") or package.name
+            package.icon_base64 = item.get("iconPngBase64", "")
+        self.render_packages()
+        self.log_message(f"AMBridge supplied labels and icons for {len(self._ambridge_metadata)} apps.")
+        self.statusBar().showMessage(f"Loaded app names and icons for {len(self._ambridge_metadata)} packages", 7000)
+        if show_errors:
+            QMessageBox.information(self, "NightLab AMBridge", f"Retrieved app names and icons for {len(self._ambridge_metadata)} installed packages.")
+
     def manage_ambridge(self) -> None:
         if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
         answer = QMessageBox.question(
             self, "AMBridge companion",
-            "Check whether com.nightlab.ambridge is installed on this device?\n\n"
-            "If missing, you can select a trusted companion APK. It must declare the package ID com.nightlab.ambridge to be detected. The APK is not bundled with this project.",
+            "Refresh app names and icons from NightLab AMBridge, or install the companion if it is missing.\n\n"
+            "The companion communicates through a temporary ADB-forwarded local connection; it does not upload your inventory to a server.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
         if answer == QMessageBox.StandardButton.Yes:
             self.check_ambridge(prompt_if_missing=True)
+        elif answer == QMessageBox.StandardButton.No:
+            self.load_ambridge_inventory(show_errors=True)
 
     def install_ambridge_apk(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -1120,8 +1238,8 @@ class MainWindow(QMainWindow):
         if "Success" in output:
             QMessageBox.information(
                 self, "AMBridge installed",
-                "The APK installer reported success. Confirm the installed package ID is com.nightlab.ambridge. If needed, open Android Settings → Apps and grant only permissions documented by its maintainer.\n\n"
-                "Keep the phone awake and unlocked, then choose Load packages to refresh this app's inventory. AMBridge has no launcher UI."
+                "The APK installer reported success. Confirm the installed package ID is com.nightlab.ambridge.\n\n"
+                "The desktop app will now try to open AMBridge and retrieve app names and icons. Keep the phone unlocked during the first connection."
             )
 
     def _device_adb(self, *args: str) -> list[str] | None:
