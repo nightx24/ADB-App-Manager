@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ADB App Manager
+Comment=Manage Android packages through Android Debug Bridge
+Exec=adb-app-manager
+Icon=io.github.nightx24.ADBAppManager
+Categories=Utility;System;
+Terminal=false
