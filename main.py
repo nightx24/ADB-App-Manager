@@ -1322,6 +1322,24 @@ class MainWindow(QMainWindow):
             return None
         return [adb, "-s", self.device_id, *args]
 
+    @staticmethod
+    def _explain_adb_error(message: str) -> str:
+        """Add a short plain-language hint for common Android install errors."""
+        lower = message.lower()
+        hints = [
+            (("insufficient_storage", "not enough space", "no space left"), "Free storage on the phone and retry."),
+            (("version_downgrade", "downgrade detected"), "Enable Allow downgrade if Android permits it, or install a newer version."),
+            (("update_incompatible", "signatures do not match", "inconsistent certificates"), "The installed app has a different signing key. Uninstalling can erase its data."),
+            (("parse_failed", "failed to parse", "no certificates"), "The APK may be corrupt, incomplete, or incompatible with this Android version."),
+            (("older sdk", "requires newer sdk"), "This APK requires a different Android version."),
+            (("unauthorized",), "Unlock the phone and approve the USB debugging prompt."),
+            (("offline", "no devices/emulators found"), "Reconnect the phone and refresh the device list."),
+        ]
+        for tokens, hint in hints:
+            if any(token in lower for token in tokens):
+                return f"{message} | Hint: {hint}"
+        return message
+
     def install_apks(self) -> None:
         """Open a batch APK queue supporting drag/drop, options, retry, and logs."""
         adb = self.adb_path()
