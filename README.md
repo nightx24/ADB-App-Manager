@@ -5,6 +5,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 ## Features
 
 - Detect ADB and connected Android devices
+- Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
 - Uninstall an app for the current Android user (does not remove the APK from the system partition)
 - Disable and re-enable packages
@@ -38,6 +39,7 @@ The Flatpak needs access to ADB on the host. It requests read-only host filesyst
 - Android SDK Platform-Tools (`adb`) installed and available on `PATH` for the regular Linux binary and Windows app.
 - Android device with Developer options and USB debugging enabled.
 - Accept the USB debugging authorization prompt on the phone.
+- For wireless pairing on Android 11+, enable Developer options → Wireless debugging; pairing and connection ports are different. Keep the PC and phone on the same local network.
 
 ## Run from source
 
@@ -59,6 +61,12 @@ pyinstaller --noconfirm --clean --onefile --windowed --name ADB-App-Manager main
 ```
 
 The executable is created in `dist/`.
+
+## Wireless ADB connection
+
+Use **Pair Wi-Fi** for Android 11+ Wireless Debugging pairing. Enter the pairing IP/port and six-digit code shown by the phone. After pairing, use **Connect Wi-Fi** with the separate connection IP/port shown on the main Wireless Debugging screen. The app refreshes the device list after a connection attempt. Ports can change, so read the current values from Android settings each time.
+
+Use this only on a trusted local network and only with devices you are authorized to manage. This workflow does not enable legacy `adb tcpip` mode over USB; that can be added separately for older Android versions.
 
 ## Optional ACBridge companion
 
