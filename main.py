@@ -42,11 +42,22 @@ class Worker(QThread):
             # as /usr/bin/adb: its system libraries may need newer C++ symbols.
             child_env = os.environ.copy()
             if sys.platform.startswith("linux") and getattr(sys, "frozen", False):
+                # PyInstaller's one-file bootloader prepends its temporary
+                # extraction directory (_MEI...) to LD_LIBRARY_PATH. Never let
+                # that bundled path override system libraries used by host ADB.
                 original_ld_library_path = child_env.pop("LD_LIBRARY_PATH_ORIG", None)
                 if original_ld_library_path is not None:
                     child_env["LD_LIBRARY_PATH"] = original_ld_library_path
                 else:
-                    child_env.pop("LD_LIBRARY_PATH", None)
+                    current_ld_library_path = child_env.get("LD_LIBRARY_PATH", "")
+                    safe_paths = [
+                        path for path in current_ld_library_path.split(":")
+                        if path and "_MEI" not in path
+                    ]
+                    if safe_paths:
+                        child_env["LD_LIBRARY_PATH"] = ":".join(safe_paths)
+                    else:
+                        child_env.pop("LD_LIBRARY_PATH", None)
             proc = subprocess.run(
                 self.command,
                 capture_output=True,
