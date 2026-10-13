@@ -1,6 +1,6 @@
 # Feature roadmap: ADB App Manager
 
-This project implements its own feature set inspired by common Android device-management workflows. It does not copy ADB AppControl's proprietary implementation, artwork, branding, or license system.
+This is an independent project inspired by workflows found in [ADB AppControl](https://adbappcontrol.com/en/), [Universal Android Debloater](https://github.com/0x192/universal-android-debloater), and [Universal Android Debloater Next Generation](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation). It does not claim to be affiliated with those projects or copy proprietary implementations, artwork, branding, or license systems.
 
 ## Planned feature parity
 
@@ -11,6 +11,7 @@ This project implements its own feature set inspired by common Android device-ma
 - [ ] Restore packages uninstalled for the current Android user
 - [ ] App-data clearing with an explicit data-loss confirmation
 - [ ] Show app label, version, install source, enabled state, and package size where Android exposes the information
+- [ ] Integrate optional NightLab AMBridge metadata only after a documented, compatible protocol is available; current companion check only detects `com.nightlab.ambridge`
 - [ ] Sort by name, package, size, and app type
 - [x] **Connected-device app history:** show apps disabled on the connected phone in a dedicated list, with an enable/restore action
 - [x] **Uninstalled-app history:** record package names and timestamps when this app uninstalls an app, and show the history for that device with a reinstall/restore option when possible
