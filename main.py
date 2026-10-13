@@ -37,7 +37,23 @@ class Worker(QThread):
 
     def run(self) -> None:
         try:
-            proc = subprocess.run(self.command, capture_output=True, text=True, timeout=self.timeout)
+            # PyInstaller adjusts LD_LIBRARY_PATH so the frozen GUI can load its
+            # bundled libraries. Do not pass that override to system tools such
+            # as /usr/bin/adb: its system libraries may need newer C++ symbols.
+            child_env = os.environ.copy()
+            if sys.platform.startswith("linux") and getattr(sys, "frozen", False):
+                original_ld_library_path = child_env.pop("LD_LIBRARY_PATH_ORIG", None)
+                if original_ld_library_path is not None:
+                    child_env["LD_LIBRARY_PATH"] = original_ld_library_path
+                else:
+                    child_env.pop("LD_LIBRARY_PATH", None)
+            proc = subprocess.run(
+                self.command,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                env=child_env,
+            )
             output = (proc.stdout or "").strip()
             error = (proc.stderr or "").strip()
             if proc.returncode != 0:
