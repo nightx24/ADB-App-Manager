@@ -523,11 +523,11 @@ class MainWindow(QMainWindow):
 
     def check_ambridge(self, prompt_if_missing: bool = False) -> None:
         """Check for the optional AMBridge companion without bundling its proprietary APK."""
-        cmd = self._device_adb("shell", "pm", "list", "packages", "com.cybercat.acbridge")
+        cmd = self._device_adb("shell", "pm", "list", "packages", "com.nightlab.ambridge")
         if not cmd:
             return
         def checked(output: str) -> None:
-            installed = "package:com.cybercat.acbridge" in output.splitlines()
+            installed = "package:com.nightlab.ambridge" in output.splitlines()
             if installed:
                 self.log_message("AMBridge companion detected on the selected device.")
                 self.statusBar().showMessage("AMBridge is installed. Use Load packages to refresh inventory.", 6000)
@@ -552,7 +552,7 @@ class MainWindow(QMainWindow):
             return
         answer = QMessageBox.question(
             self, "AMBridge companion",
-            "Check whether com.cybercat.acbridge is installed on this device?\n\n"
+            "Check whether com.nightlab.ambridge is installed on this device?\n\n"
             "If missing, you can choose an APK you obtained from the official AMBridge source. The APK is not bundled with this project.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
@@ -566,10 +566,10 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        if Path(path).name.lower() != "com.cybercat.acbridge.apk":
+        if Path(path).name.lower() != "com.nightlab.ambridge.apk":
             answer = QMessageBox.question(
                 self, "Confirm AMBridge APK",
-                "The selected file is not named com.cybercat.acbridge.apk. Only continue if you verified it came from the official AMBridge source.\n\nInstall this APK?",
+                "The selected file is not named com.nightlab.ambridge.apk. Only continue if you verified it came from the official AMBridge source.\n\nInstall this APK?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )
