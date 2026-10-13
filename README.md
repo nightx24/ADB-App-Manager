@@ -10,18 +10,34 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Disable and re-enable packages
 - Export the package inventory to CSV
 - Activity log and confirmation dialogs for potentially disruptive actions
-- GitHub Actions builds for Windows and Linux
+- Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
+
+## Downloads
+
+Open the [GitHub Actions builds](https://github.com/nightx24/ADB-App-Manager/actions) and download the artifact from the latest successful run. Tagged releases (`v*`) also publish release files.
+
+- **Windows:** `ADB-App-Manager-Windows.zip` — extract and run `ADB-App-Manager.exe`.
+- **Linux AppImage:** `ADB-App-Manager-x86_64.AppImage` — mark it executable, then launch it.
+- **Linux portable binary:** `ADB-App-Manager-Linux.tar.gz` — extract and run `ADB-App-Manager`.
+- **Linux Flatpak:** `ADB-App-Manager.flatpak` — install using the command below.
+
+Install a Flatpak bundle:
+```bash
+flatpak install --user ./ADB-App-Manager.flatpak
+flatpak run io.github.nightx24.ADBAppManager
+```
+
+The Flatpak needs access to ADB on the host. It requests read-only host filesystem visibility and device access so it can find host-installed Platform-Tools and connect to USB devices. Depending on your Linux setup, ADB access may require additional udev permissions or a host ADB server.
 
 ## Requirements
 
-- Python 3.11+
-- Android SDK Platform-Tools (`adb`) installed and available on `PATH`
-- Android device with Developer options and USB debugging enabled
-- Accept the USB debugging authorization prompt on the phone
-
-On Fedora, install Qt's runtime dependencies if prompted by PySide6. On Windows, install Android Platform-Tools and add its directory to `PATH`.
+- Android SDK Platform-Tools (`adb`) installed and available on `PATH` for the regular Linux binary and Windows app.
+- Android device with Developer options and USB debugging enabled.
+- Accept the USB debugging authorization prompt on the phone.
 
 ## Run from source
+
+Python 3.11+ is recommended.
 
 ```bash
 python -m venv .venv
@@ -35,7 +51,7 @@ python main.py
 
 ```bash
 python -m pip install -r requirements.txt pyinstaller
-pyinstaller --noconfirm --clean --windowed --name ADB-App-Manager main.py
+pyinstaller --noconfirm --clean --onefile --windowed --name ADB-App-Manager main.py
 ```
 
 The executable is created in `dist/`.
