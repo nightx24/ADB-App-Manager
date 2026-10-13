@@ -22,6 +22,10 @@ import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,6 +38,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         buildScreen()
         refreshSummary()
+        startLocalInventoryServer()
     }
 
     private fun buildScreen() {
@@ -55,7 +60,7 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(18))
         }, matchWrap())
         outer.addView(TextView(this).apply {
-            text = "Export an app inventory containing each installed app's display name, package ID, version, app type, and icon. The export is saved to your phone's Downloads folder so the desktop manager can import it."
+            text = "Share installed app names and icons with the desktop manager over a temporary ADB-forwarded local connection. No app list is uploaded to a remote server."
             textSize = 15f
             setTextColor(0xFF263246.toInt())
             setPadding(dp(16), dp(16), dp(16), dp(16))
@@ -77,7 +82,7 @@ class MainActivity : Activity() {
             setOnClickListener { refreshSummary() }
         }, matchWrap())
         outer.addView(TextView(this).apply {
-            text = "Privacy: the inventory is created on this device and saved locally. This app does not upload your app list or icons to a server."
+            text = "Privacy: the bridge listens only on device loopback and serves read-only app metadata. The desktop reaches it through authorized ADB port forwarding; no remote server is used."
             textSize = 12f
             setTextColor(0xFF586579.toInt())
             setPadding(0, dp(18), 0, 0)
@@ -85,6 +90,81 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this)
         scroll.addView(outer)
         setContentView(scroll)
+    }
+
+    // Read-only HTTP endpoint available only on Android loopback. The desktop accesses it
+    // through an authenticated ADB connection using adb forward; it is not exposed to Wi-Fi.
+    private fun startLocalInventoryServer() {
+        Thread {
+            try {
+                ServerSocket(39876, 8, InetAddress.getByName("127.0.0.1")).use { server ->
+                    server.soTimeout = 1000
+                    while (!isFinishing) {
+                        try {
+                            server.accept().use { client ->
+                                client.soTimeout = 15000
+                                val reader = BufferedReader(InputStreamReader(client.getInputStream(), Charsets.UTF_8))
+                                val requestLine = reader.readLine() ?: return@use
+                                while (true) {
+                                    val header = reader.readLine() ?: break
+                                    if (header.isEmpty()) break
+                                }
+                                val isInventoryRequest = requestLine.startsWith("GET /v1/apps ")
+                                val body = if (isInventoryRequest) buildInventoryJson().toString().toByteArray(Charsets.UTF_8)
+                                    else JSONObject().put("error", "not_found").toString().toByteArray(Charsets.UTF_8)
+                                val status = if (isInventoryRequest) "200 OK" else "404 Not Found"
+                                val headers = "HTTP/1.1 $status\\r\\nContent-Type: application/json; charset=utf-8\\r\\nContent-Length: ${body.size}\\r\\nConnection: close\\r\\nCache-Control: no-store\\r\\n\\r\\n"
+                                client.getOutputStream().apply {
+                                    write(headers.toByteArray(Charsets.UTF_8))
+                                    write(body)
+                                    flush()
+                                }
+                            }
+                        } catch (_: java.net.SocketTimeoutException) {
+                            // Periodically check whether the activity is finishing.
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    if (::status.isInitialized) status.text = "Local bridge unavailable: " + (e.localizedMessage ?: "unknown error")
+                }
+            }
+        }.apply { name = "NightLabAMBridgeServer"; isDaemon = true }.start()
+    }
+
+    private fun buildInventoryJson(): JSONObject {
+        val entries = JSONArray()
+        for (info in installedApplications()) {
+            val item = JSONObject()
+            item.put("packageName", info.packageName)
+            item.put("label", safeLabel(info))
+            item.put("systemApp", (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0)
+            item.put("iconPngBase64", iconAsBase64(info))
+            try {
+                @Suppress("DEPRECATION")
+                val version = packageManager.getPackageInfo(info.packageName, 0)
+                item.put("versionName", version.versionName ?: "")
+                item.put("versionCode", if (android.os.Build.VERSION.SDK_INT >= 28) version.longVersionCode else {
+                    @Suppress("DEPRECATION")
+                    version.versionCode.toLong()
+                })
+            } catch (_: Exception) {
+                item.put("versionName", "")
+                item.put("versionCode", 0)
+            }
+            entries.put(item)
+        }
+        return JSONObject().apply {
+            put("schemaVersion", 1)
+            put("app", "NightLab AMBridge")
+            put("packageName", packageName)
+            put("exportedAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date()))
+            put("deviceManufacturer", android.os.Build.MANUFACTURER ?: "")
+            put("deviceModel", android.os.Build.MODEL ?: "")
+            put("androidRelease", android.os.Build.VERSION.RELEASE ?: "")
+            put("applications", entries)
+        }
     }
 
     private fun refreshSummary() {
