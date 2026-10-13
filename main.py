@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.packages: list[Package] = []
         self.third_party_names: set[str] = set()
         self.device_id: str | None = None
-        self._acbridge_prompted_devices: set[str] = set()
+        self._ambridge_prompted_devices: set[str] = set()
         self.worker: Worker | None = None
         self._build_ui()
         self._style_ui()
@@ -135,9 +135,9 @@ class MainWindow(QMainWindow):
         self.install_btn.clicked.connect(self.install_apks)
         self.clear_data_btn = QPushButton("Clear app data")
         self.clear_data_btn.clicked.connect(self.clear_app_data)
-        self.acbridge_btn = QPushButton("ACBridge helper")
-        self.acbridge_btn.clicked.connect(self.manage_acbridge)
-        for btn in (self.uninstall_btn, self.disable_btn, self.enable_btn, self.install_btn, self.clear_data_btn, self.acbridge_btn):
+        self.ambridge_btn = QPushButton("AMBridge helper")
+        self.ambridge_btn.clicked.connect(self.manage_ambridge)
+        for btn in (self.uninstall_btn, self.disable_btn, self.enable_btn, self.install_btn, self.clear_data_btn, self.ambridge_btn):
             btn.setEnabled(False)
             actions.addWidget(btn)
         actions.addStretch(1)
@@ -242,9 +242,9 @@ class MainWindow(QMainWindow):
         self.packages = []
         self.render_packages()
         self._selection_changed()
-        if self.device_id and self.device_id not in self._acbridge_prompted_devices:
-            self._acbridge_prompted_devices.add(self.device_id)
-            self.check_acbridge(prompt_if_missing=True)
+        if self.device_id and self.device_id not in self._ambridge_prompted_devices:
+            self._ambridge_prompted_devices.add(self.device_id)
+            self.check_ambridge(prompt_if_missing=True)
 
     def load_packages(self) -> None:
         adb = self.adb_path()
@@ -521,55 +521,55 @@ class MainWindow(QMainWindow):
         )
         self.wireless_connect()
 
-    def check_acbridge(self, prompt_if_missing: bool = False) -> None:
-        """Check for the optional ACBridge companion without bundling its proprietary APK."""
-        cmd = self._device_adb("shell", "pm", "list", "packages", "com.cybercat.acbridge")
+    def check_ambridge(self, prompt_if_missing: bool = False) -> None:
+        """Check for the optional AMBridge companion without bundling its proprietary APK."""
+        cmd = self._device_adb("shell", "pm", "list", "packages", "com.cybercat.ambridge")
         if not cmd:
             return
         def checked(output: str) -> None:
-            installed = "package:com.cybercat.acbridge" in output.splitlines()
+            installed = "package:com.cybercat.ambridge" in output.splitlines()
             if installed:
-                self.log_message("ACBridge companion detected on the selected device.")
-                self.statusBar().showMessage("ACBridge is installed. Use Load packages to refresh inventory.", 6000)
+                self.log_message("AMBridge companion detected on the selected device.")
+                self.statusBar().showMessage("AMBridge is installed. Use Load packages to refresh inventory.", 6000)
             elif prompt_if_missing:
                 answer = QMessageBox.question(
-                    self, "ACBridge is not installed",
-                    "ACBridge is an optional Android companion that may provide richer app metadata to compatible tools.\n\n"
-                    "This app does not bundle Cyber.Cat's proprietary APK. Would you like to select an ACBridge APK you obtained from its official source and install it with ADB?\n\n"
+                    self, "AMBridge is not installed",
+                    "AMBridge is an optional Android companion that may provide richer app metadata to compatible tools.\n\n"
+                    "This app does not bundle Cyber.Cat's proprietary APK. Would you like to select an AMBridge APK you obtained from its official source and install it with ADB?\n\n"
                     "Requires Android 6 or newer. Keep the phone awake and unlocked during setup.",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No,
                 )
                 if answer == QMessageBox.StandardButton.Yes:
-                    self.install_acbridge_apk()
+                    self.install_ambridge_apk()
             else:
-                self.log_message("ACBridge is not installed. Choose ACBridge helper to install an official APK.")
+                self.log_message("AMBridge is not installed. Choose AMBridge helper to install an official APK.")
         self.run_async(cmd, checked, timeout=45)
 
-    def manage_acbridge(self) -> None:
+    def manage_ambridge(self) -> None:
         if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
         answer = QMessageBox.question(
-            self, "ACBridge companion",
-            "Check whether com.cybercat.acbridge is installed on this device?\n\n"
-            "If missing, you can choose an APK you obtained from the official ACBridge source. The APK is not bundled with this project.",
+            self, "AMBridge companion",
+            "Check whether com.cybercat.ambridge is installed on this device?\n\n"
+            "If missing, you can choose an APK you obtained from the official AMBridge source. The APK is not bundled with this project.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
         if answer == QMessageBox.StandardButton.Yes:
-            self.check_acbridge(prompt_if_missing=True)
+            self.check_ambridge(prompt_if_missing=True)
 
-    def install_acbridge_apk(self) -> None:
+    def install_ambridge_apk(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select official ACBridge APK", "", "Android package (*.apk)"
+            self, "Select official AMBridge APK", "", "Android package (*.apk)"
         )
         if not path:
             return
-        if Path(path).name.lower() != "com.cybercat.acbridge.apk":
+        if Path(path).name.lower() != "com.cybercat.ambridge.apk":
             answer = QMessageBox.question(
-                self, "Confirm ACBridge APK",
-                "The selected file is not named com.cybercat.acbridge.apk. Only continue if you verified it came from the official ACBridge source.\n\nInstall this APK?",
+                self, "Confirm AMBridge APK",
+                "The selected file is not named com.cybercat.ambridge.apk. Only continue if you verified it came from the official AMBridge source.\n\nInstall this APK?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )
@@ -579,20 +579,20 @@ class MainWindow(QMainWindow):
         if not cmd:
             return
         if not self._confirmed(
-            "Install ACBridge?",
+            "Install AMBridge?",
             "Install the selected companion APK on the connected Android device?\n\n"
             "Android 6 or newer is required. This app does not verify the APK's publisher signature.",
         ):
             return
-        self.run_async(cmd, lambda out: self._acbridge_install_finished(out), timeout=180)
+        self.run_async(cmd, lambda out: self._ambridge_install_finished(out), timeout=180)
 
-    def _acbridge_install_finished(self, output: str) -> None:
-        self.log_message("ACBridge install result: " + (output or "Command completed."))
+    def _ambridge_install_finished(self, output: str) -> None:
+        self.log_message("AMBridge install result: " + (output or "Command completed."))
         if "Success" in output:
             QMessageBox.information(
-                self, "ACBridge installed",
-                "ACBridge was installed. If the device requires it, open Android Settings → Apps → ACBridge and grant the requested storage/files access.\n\n"
-                "Keep the phone awake and unlocked, then choose Load packages to refresh this app's inventory. ACBridge has no launcher UI."
+                self, "AMBridge installed",
+                "AMBridge was installed. If the device requires it, open Android Settings → Apps → AMBridge and grant the requested storage/files access.\n\n"
+                "Keep the phone awake and unlocked, then choose Load packages to refresh this app's inventory. AMBridge has no launcher UI."
             )
 
     def _device_adb(self, *args: str) -> list[str] | None:
