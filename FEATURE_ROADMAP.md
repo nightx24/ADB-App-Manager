@@ -12,6 +12,10 @@ This project implements its own feature set inspired by common Android device-ma
 - [ ] App-data clearing with an explicit data-loss confirmation
 - [ ] Show app label, version, install source, enabled state, and package size where Android exposes the information
 - [ ] Sort by name, package, size, and app type
+- [ ] **Connected-device app history:** show apps disabled on the connected phone in a dedicated list, with an enable/restore action
+- [ ] **Uninstalled-app history:** record package names and timestamps when this app uninstalls an app, and show the history for that device with a reinstall/restore option when possible
+- [ ] Clearly distinguish apps uninstalled by ADB App Manager from apps that were already absent; Android generally does not provide a complete history of apps uninstalled before tracking began
+- [ ] Refresh app status from the connected phone and handle device changes/reconnections safely
 
 ### APK library and transfer
 - [ ] Single and batch APK installation
@@ -44,7 +48,7 @@ This project implements its own feature set inspired by common Android device-ma
 
 ## Implementation order
 
-1. Batch package operations, package state, presets, and debloat recommendations.
+1. Batch package operations, package state, presets, debloat recommendations, and connected-device disabled/uninstalled app history.
 2. APK installation/export, multi-file transfer, and local APK library.
 3. Shell, logcat, permissions, resolution/DPI, and reboot tools.
 4. Process information, multi-device connection history, drag-and-drop, scrcpy integration, customization, and secure key handling.
