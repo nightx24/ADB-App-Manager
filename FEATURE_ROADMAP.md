@@ -6,7 +6,8 @@ This project implements its own feature set inspired by common Android device-ma
 
 ### Package management
 - [ ] Multi-select and safe batch disable/enable/uninstall
-- [ ] Debloat recommendations with risk levels and editable presets
+- [x] Conservative exact-package debloat guidance with conditional risk labels and a review-only filter
+- [ ] Device/OEM-aware recommendations and editable debloat presets
 - [ ] Restore packages uninstalled for the current Android user
 - [ ] App-data clearing with an explicit data-loss confirmation
 - [ ] Show app label, version, install source, enabled state, and package size where Android exposes the information
