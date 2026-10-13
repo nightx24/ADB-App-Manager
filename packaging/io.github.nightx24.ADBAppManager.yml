@@ -13,6 +13,11 @@ finish-args:
 modules:
   - name: python-dependencies
     buildsystem: simple
+    build-options:
+      # pip needs network access while resolving and downloading PySide6.
+      # Flatpak build sandboxes disable network access by default.
+      build-args:
+        - --share=network
     sources:
       - type: dir
         path: ..
@@ -23,6 +28,7 @@ modules:
     build-commands:
       - install -D -m 644 main.py /app/share/adb-app-manager/main.py
       - install -D -m 644 packaging/io.github.nightx24.ADBAppManager.desktop /app/share/applications/io.github.nightx24.ADBAppManager.desktop
+      - install -D -m 644 packaging/adb-app-manager.desktop /app/share/applications/io.github.nightx24.ADBAppManager.desktop
       - install -D -m 644 packaging/adb-app-manager.svg /app/share/icons/hicolor/scalable/apps/io.github.nightx24.ADBAppManager.svg
       - install -D -m 755 packaging/flatpak-launcher.sh /app/bin/adb-app-manager
     sources:
