@@ -446,6 +446,10 @@ class MainWindow(QMainWindow):
             ("ADB console", "Run a command or transfer files.", [
                 ("Shell command", self.shell_command), ("Upload files", self.upload_files)
             ]),
+            ("APK installer", "Install Android apps from APK files, including split APK bundles.", [
+                ("Install APK(s)", self.install_apks),
+                ("Install split APK set", self.install_split_apks),
+            ]),
             ("Connection", "Configure older TCP/IP debugging.", [
                 ("Enable TCP/IP (USB)", self.enable_legacy_tcpip)
             ]),
@@ -1283,23 +1287,96 @@ class MainWindow(QMainWindow):
         return [adb, "-s", self.device_id, *args]
 
     def install_apks(self) -> None:
-        paths, _ = QFileDialog.getOpenFileNames(self, "Select APK files", "", "Android packages (*.apk)")
+        """Install one or more independent APK files, one at a time."""
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Select APK file(s) to install", "", "Android packages (*.apk)"
+        )
         if not paths:
+            return
+        paths = [str(Path(path).expanduser().resolve()) for path in paths]
+        missing = [path for path in paths if not Path(path).is_file()]
+        if missing:
+            QMessageBox.warning(self, APP_NAME, "These APK files could not be found:\n" + "\n".join(missing))
             return
         adb = self.adb_path()
         if not adb or not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
-        if not self._confirmed("Install APK files?", f"Install {len(paths)} APK file(s) on {self.device_id}?"):
+        serial = self.device_id
+        if not self._confirmed(
+            "Install APK files?",
+            f"Install {len(paths)} APK file(s) on {serial}?\n\n"
+            "Select separate apps here. For a split APK bundle (base.apk plus config APKs), use "
+            "'Install split APK set' instead."
+        ):
             return
+
         def run_next(i: int = 0) -> None:
             if i >= len(paths):
                 self.log_message("APK installation queue finished.")
+                QMessageBox.information(self, APP_NAME, "Finished processing the selected APK files. Check the activity log for each result.")
                 return
             path = paths[i]
-            self.run_async([adb, "-s", self.device_id, "install", "-r", path],
-                lambda out: (self.log_message(f"{Path(path).name}: {out or 'Installed'}"), run_next(i + 1)), timeout=180)
+            self.log_message(f"Installing {Path(path).name}…")
+            command = [adb, "-s", serial, "install", "-r", path]
+
+            def completed(output: str) -> None:
+                result = output.strip() or "(no output)"
+                self.log_message(f"{Path(path).name}: {result}")
+                if "Success" not in result and "success" not in result.lower():
+                    QMessageBox.warning(
+                        self, "APK installation failed",
+                        f"ADB did not confirm installation of {Path(path).name}.\n\n{result}\n\n"
+                        "For split APKs, use 'Install split APK set'."
+                    )
+                run_next(i + 1)
+
+            self.run_async(command, completed, timeout=180)
         run_next()
+
+    def install_split_apks(self) -> None:
+        """Install a single app delivered as base.apk plus one or more split APKs."""
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Select all APK files from one split-APK bundle", "", "Android packages (*.apk)"
+        )
+        if not paths:
+            return
+        paths = [str(Path(path).expanduser().resolve()) for path in paths]
+        missing = [path for path in paths if not Path(path).is_file()]
+        if missing:
+            QMessageBox.warning(self, APP_NAME, "These APK files could not be found:\n" + "\n".join(missing))
+            return
+        if len(paths) < 2:
+            QMessageBox.information(
+                self, APP_NAME,
+                "A split APK install needs at least two files (usually base.apk and config APKs). "
+                "For one ordinary APK, use 'Install APK(s)'."
+            )
+            return
+        adb = self.adb_path()
+        if not adb or not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        if not self._confirmed(
+            "Install split APK bundle?",
+            f"Install {len(paths)} APK parts together on {self.device_id}?\n\n"
+            "All selected files must belong to the same app and bundle version."
+        ):
+            return
+        command = [adb, "-s", self.device_id, "install-multiple", "-r", *paths]
+        self.log_message(f"Installing split APK bundle ({len(paths)} files)…")
+
+        def completed(output: str) -> None:
+            result = output.strip() or "(no output)"
+            self.log_message("Split APK install result: " + result)
+            if "Success" in result:
+                QMessageBox.information(self, APP_NAME, "Split APK bundle installed successfully.")
+            else:
+                QMessageBox.warning(
+                    self, "Split APK installation failed",
+                    result + "\n\nCheck that every APK part belongs to the same app/version and is compatible with the device."
+                )
+        self.run_async(command, completed, timeout=300)
 
     def clear_app_data(self) -> None:
         package = self.selected_package()
