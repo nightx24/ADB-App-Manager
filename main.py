@@ -67,8 +67,8 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         root = QVBoxLayout(central)
-        root.setContentsMargins(18, 16, 18, 14)
-        root.setSpacing(12)
+        root.setContentsMargins(24, 20, 24, 18)
+        root.setSpacing(15)
 
         header = QHBoxLayout()
         title_box = QVBoxLayout()
@@ -163,18 +163,59 @@ class MainWindow(QMainWindow):
         self.menuBar().addMenu("Device").addAction(refresh_action)
 
     def _style_ui(self) -> None:
+        # Modern, high-contrast dark UI with consistent spacing and accessible focus states.
         self.setStyleSheet("""
-            QMainWindow, QWidget { background: #11151c; color: #e8edf5; font-size: 13px; }
-            QLabel#title { font-size: 25px; font-weight: 700; color: #ffffff; }
-            QLabel#subtitle { color: #a4afc0; }
-            QLineEdit, QComboBox, QTextEdit, QTableWidget { background: #191f29; border: 1px solid #303949; border-radius: 7px; padding: 7px; selection-background-color: #315eaa; }
-            QHeaderView::section { background: #202837; color: #dce5f3; padding: 8px; border: none; }
-            QTableWidget { gridline-color: #283140; alternate-background-color: #151b24; }
-            QPushButton { background: #263244; border: 1px solid #3a485d; border-radius: 7px; padding: 9px 13px; font-weight: 600; }
-            QPushButton:hover { background: #33445e; }
-            QPushButton:disabled { color: #727d8c; background: #1a2029; }
-            QStatusBar { color: #a4afc0; }
+            * { font-family: "Inter", "Segoe UI", "Noto Sans", sans-serif; font-size: 13px; }
+            QMainWindow, QWidget { background: #0b1020; color: #e7ecf5; }
+            QMenuBar { background: #0b1020; color: #cbd5e1; padding: 5px 8px; }
+            QMenuBar::item { padding: 7px 11px; border-radius: 6px; background: transparent; }
+            QMenuBar::item:selected, QMenu { background: #172033; }
+            QMenu { border: 1px solid #2b3850; padding: 5px; }
+            QMenu::item { padding: 7px 24px; border-radius: 5px; }
+            QMenu::item:selected { background: #263b60; }
+            QLabel { background: transparent; }
+            QLabel#title { font-size: 27px; font-weight: 750; color: #f8fafc; padding: 2px 0; }
+            QLabel#subtitle { color: #94a3b8; font-size: 12px; }
+            QLineEdit, QComboBox, QTextEdit {
+                background: #111a2b; color: #e7ecf5; border: 1px solid #293750;
+                border-radius: 9px; padding: 9px 11px; selection-background-color: #315fbd;
+            }
+            QLineEdit:hover, QComboBox:hover, QTextEdit:hover { border-color: #3b4e70; }
+            QLineEdit:focus, QComboBox:focus, QTextEdit:focus { border: 1px solid #60a5fa; }
+            QComboBox::drop-down { border: 0; width: 26px; }
+            QComboBox QAbstractItemView { background: #111a2b; color: #e7ecf5; selection-background-color: #263f68; border: 1px solid #293750; }
+            QTableWidget {
+                background: #0f1727; alternate-background-color: #121d30;
+                color: #e2e8f0; border: 1px solid #25324a; border-radius: 12px;
+                gridline-color: #1e293b; padding: 5px; selection-background-color: #244777;
+                selection-color: #ffffff; outline: 0;
+            }
+            QTableWidget::item { padding: 8px 10px; border-bottom: 1px solid #1d293d; }
+            QTableWidget::item:hover { background: #192941; }
+            QHeaderView { background: #131e31; }
+            QHeaderView::section {
+                background: #131e31; color: #9fb1ca; padding: 11px 10px;
+                border: none; border-bottom: 1px solid #2b3952; font-weight: 700;
+            }
+            QTableCornerButton::section { background: #131e31; border: none; }
+            QPushButton {
+                background: #17243a; color: #dbe7f8; border: 1px solid #30415e;
+                border-radius: 9px; padding: 9px 13px; font-weight: 600;
+            }
+            QPushButton:hover { background: #223653; border-color: #49678f; }
+            QPushButton:pressed { background: #132037; }
+            QPushButton:focus { border: 1px solid #60a5fa; }
+            QPushButton:disabled { color: #64748b; background: #111827; border-color: #202b3d; }
+            QStatusBar { background: #0e1727; color: #a8b7cc; border-top: 1px solid #233149; }
+            QStatusBar::item { border: none; }
+            QScrollBar:vertical { background: #0f1727; width: 12px; margin: 2px; }
+            QScrollBar::handle:vertical { background: #33445f; min-height: 24px; border-radius: 5px; }
+            QScrollBar::handle:vertical:hover { background: #49658b; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
         """)
+        self.table.verticalHeader().setDefaultSectionSize(38)
+        self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
 
     def log_message(self, message: str) -> None:
         stamp = datetime.now().strftime("%H:%M:%S")
