@@ -13,6 +13,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Multi-select batch enable, disable, and uninstall operations
 - Batch APK installation, multi-file upload to Downloads, and package data clearing
 - Interactive ADB shell, device reboot modes, and package-list presets
+- Optional ACBridge companion detection and guided installation from a user-selected APK
 - Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
 
 ## Downloads
@@ -58,6 +59,14 @@ pyinstaller --noconfirm --clean --onefile --windowed --name ADB-App-Manager main
 ```
 
 The executable is created in `dist/`.
+
+## Optional ACBridge companion
+
+When an authorized device is selected, the app checks whether `com.cybercat.acbridge` is installed and offers a guided setup if it is missing. You can also use **ACBridge helper** to check again. If you choose to install it, select the APK you obtained from the official ACBridge source; this project does not bundle or redistribute Cyber.Cat's proprietary APK. The installer uses ADB and displays setup guidance for Android 6+ devices.
+
+Keep the phone awake and unlocked during setup. Some devices may require enabling installation via ADB and USB debugging security settings, then granting ACBridge the storage/files access requested by its documentation.
+
+**Current limitation:** this commit adds companion detection and installation guidance only. It does not yet read ACBridge's private data-exchange protocol, so package rows still show package IDs rather than ACBridge-provided app names/icons. The **Load packages** button refreshes the existing package inventory, not ACBridge metadata. A real names/icons integration needs a documented interface or protocol that can be implemented without guessing.
 
 ## Safety notes
 
