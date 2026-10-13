@@ -14,7 +14,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Multi-select batch enable, disable, and uninstall operations
 - Batch APK installation, multi-file upload to Downloads, and package data clearing
 - Interactive ADB shell, device reboot modes, and package-list presets
-- Optional ACBridge companion detection and guided installation from a user-selected APK
+- Optional AMBridge companion detection and guided installation from a user-selected APK
 - Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
 
 ## Downloads
@@ -68,13 +68,13 @@ Use **Pair Wi-Fi** for Android 11+ Wireless Debugging pairing. Enter the pairing
 
 Use this only on a trusted local network and only with devices you are authorized to manage. For older Android versions or devices using classic TCP/IP debugging, connect by USB and select **Enable TCP/IP (USB)**, then enter the phone's Wi-Fi IP with port `5555` in **Connect Wi-Fi**. Use this legacy mode only on a trusted network; it is different from Android 11+ Wireless Debugging.
 
-## Optional ACBridge companion
+## Optional AMBridge companion
 
-When an authorized device is selected, the app checks whether `com.cybercat.acbridge` is installed and offers a guided setup if it is missing. You can also use **ACBridge helper** to check again. If you choose to install it, select the APK you obtained from the official ACBridge source; this project does not bundle or redistribute Cyber.Cat's proprietary APK. The installer uses ADB and displays setup guidance for Android 6+ devices.
+When an authorized device is selected, the app checks whether `com.cybercat.ambridge` is installed and offers a guided setup if it is missing. You can also use **AMBridge helper** to check again. If you choose to install it, select the APK you obtained from the official AMBridge source; this project does not bundle or redistribute Cyber.Cat's proprietary APK. The installer uses ADB and displays setup guidance for Android 6+ devices.
 
-Keep the phone awake and unlocked during setup. Some devices may require enabling installation via ADB and USB debugging security settings, then granting ACBridge the storage/files access requested by its documentation.
+Keep the phone awake and unlocked during setup. Some devices may require enabling installation via ADB and USB debugging security settings, then granting AMBridge the storage/files access requested by its documentation.
 
-**Current limitation:** this commit adds companion detection and installation guidance only. It does not yet read ACBridge's private data-exchange protocol, so package rows still show package IDs rather than ACBridge-provided app names/icons. The **Load packages** button refreshes the existing package inventory, not ACBridge metadata. A real names/icons integration needs a documented interface or protocol that can be implemented without guessing.
+**Current limitation:** this commit adds companion detection and installation guidance only. It does not yet read AMBridge's private data-exchange protocol, so package rows still show package IDs rather than AMBridge-provided app names/icons. The **Load packages** button refreshes the existing package inventory, not AMBridge metadata. A real names/icons integration needs a documented interface or protocol that can be implemented without guessing.
 
 ## Safety notes
 
