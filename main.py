@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
-    QStackedWidget, QFrame, QDialog, QCheckBox, QListWidget, QProgressBar,
+    QStackedWidget, QFrame, QDialog, QCheckBox, QListWidget, QListWidgetItem, QProgressBar,
 )
 
 APP_NAME = "ADB App Manager"
@@ -192,6 +192,39 @@ class InventoryWorker(QThread):
         finally:
             if local_port is not None:
                 subprocess.run(prefix + ["forward", "--remove", f"tcp:{local_port}"], capture_output=True, text=True, timeout=15, env=_host_tool_env())
+
+
+class ApkDropList(QListWidget):
+    """List widget that accepts APK files dropped from the desktop file manager."""
+    filesDropped = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QListWidget.DragDropMode.DropOnly)
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        paths = [
+            url.toLocalFile() for url in event.mimeData().urls()
+            if url.isLocalFile() and url.toLocalFile().lower().endswith(".apk")
+        ]
+        if paths:
+            self.filesDropped.emit(paths)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
 
 
 class MainWindow(QMainWindow):
@@ -1327,9 +1360,7 @@ class MainWindow(QMainWindow):
         intro.setWordWrap(True)
         layout.addWidget(intro)
 
-        queue = QListWidget()
-        queue.setAcceptDrops(True)
-        queue.setDragDropMode(QListWidget.DragDropMode.DropOnly)
+        queue = ApkDropList()
         queue.setToolTip("Drop .apk files here")
         layout.addWidget(queue, 1)
         progress = QProgressBar()
@@ -1384,6 +1415,8 @@ class MainWindow(QMainWindow):
 
         # QListWidget's native drop support does not expose file paths in every Qt version,
         # so the Add APKs button is always available as a reliable fallback.
+        queue.filesDropped.connect(add_paths)
+
         def add_files() -> None:
             paths, _ = QFileDialog.getOpenFileNames(dialog, "Add APK files", "", "Android packages (*.apk)")
             add_paths(paths)
