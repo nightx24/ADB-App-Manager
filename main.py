@@ -1416,8 +1416,7 @@ class MainWindow(QMainWindow):
                 status.setText(f"{len(entries)} APK file(s) queued.")
             install_btn.setEnabled(bool(entries) and not busy["value"])
 
-        # QListWidget's native drop support does not expose file paths in every Qt version,
-        # so the Add APKs button is always available as a reliable fallback.
+        # Keep the file picker available as a reliable fallback to desktop drag-and-drop.
         queue.filesDropped.connect(add_paths)
 
         def add_files() -> None:
@@ -1516,7 +1515,7 @@ class MainWindow(QMainWindow):
                     results["success" if ok else "failed"] += 1
                     self.log_message(f"APK queue {Path(path).name}: {result}")
                     next_item()
-                self.run_async(command, completed, timeout=240)
+                self.run_async(command, completed, timeout=240, on_error=lambda err: completed('ADB error: ' + err))
 
             def install_split() -> None:
                 paths = [e["path"] for e in selected_entries]
@@ -1540,7 +1539,7 @@ class MainWindow(QMainWindow):
                     self.log_message("Split APK queue result: " + result)
                     current["index"] = len(selected_entries)
                     finish()
-                self.run_async(command, completed, timeout=360)
+                self.run_async(command, completed, timeout=360, on_error=lambda err: completed('ADB error: ' + err))
 
             def finish() -> None:
                 progress.setValue(100 if not busy["cancel"] else progress.value())
