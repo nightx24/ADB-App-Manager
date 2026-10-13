@@ -195,7 +195,9 @@ class MainWindow(QMainWindow):
         self.third_party_names: set[str] = set()
         self._ambridge_metadata: dict[str, dict] = {}
         self.device_id: str | None = None
-        self._history_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)) / "uninstall-history.json"
+        self._app_data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+        self._history_path = self._app_data_dir / "uninstall-history.json"
+        self._ambridge_cache_path = self._app_data_dir / "ambridge-inventory-cache.json"
         self._ambridge_prompted_devices: set[str] = set()
         self.worker: Worker | None = None
         self._build_ui()
@@ -632,7 +634,7 @@ class MainWindow(QMainWindow):
         self.device_id = self.device_combo.currentData()
         self.device_stat.setText(self.device_id or "No device selected")
         self.packages = []
-        self._ambridge_metadata = {}
+        self._ambridge_metadata = self._read_ambridge_cache(self.device_id) if self.device_id else {}
         self.package_stat.setText("Not loaded")
         self.third_party_stat.setText("—")
         self.render_packages()
@@ -1142,6 +1144,19 @@ class MainWindow(QMainWindow):
                 self.log_message("NightLab AMBridge is not installed. Use AMBridge helper to select a trusted companion APK.")
         self.run_async(cmd, checked, timeout=45)
 
+    def _read_ambridge_cache(self, serial: str) -> dict[str, dict]:
+        """Load the last locally cached inventory for this exact ADB device."""
+        try:
+            payload = json.loads(self._ambridge_cache_path.read_text(encoding="utf-8"))
+            if payload.get("_deviceSerial") != serial or not isinstance(payload.get("applications"), list):
+                return {}
+            return {
+                item.get("packageName"): item for item in payload["applications"]
+                if isinstance(item, dict) and isinstance(item.get("packageName"), str)
+            }
+        except (OSError, ValueError, TypeError):
+            return {}
+
     def load_ambridge_inventory(self, show_errors: bool = True) -> None:
         """Ask the Android companion for labels and icons using ADB port forwarding."""
         if not self.device_id:
@@ -1182,6 +1197,13 @@ class MainWindow(QMainWindow):
             item.get("packageName"): item for item in apps
             if isinstance(item, dict) and isinstance(item.get("packageName"), str)
         }
+        try:
+            self._app_data_dir.mkdir(parents=True, exist_ok=True)
+            cached_payload = dict(result)
+            cached_payload["_deviceSerial"] = serial
+            self._ambridge_cache_path.write_text(json.dumps(cached_payload), encoding="utf-8")
+        except OSError as exc:
+            self.log_message("Could not save AMBridge metadata cache: " + str(exc))
         for package in self.packages:
             item = self._ambridge_metadata.get(package.name, {})
             package.label = item.get("label", "") or package.name
