@@ -66,7 +66,7 @@ The executable is created in `dist/`.
 
 Use **Pair Wi-Fi** for Android 11+ Wireless Debugging pairing. Enter the pairing IP/port and six-digit code shown by the phone. After pairing, use **Connect Wi-Fi** with the separate connection IP/port shown on the main Wireless Debugging screen. The app refreshes the device list after a connection attempt. Ports can change, so read the current values from Android settings each time.
 
-Use this only on a trusted local network and only with devices you are authorized to manage. This workflow does not enable legacy `adb tcpip` mode over USB; that can be added separately for older Android versions.
+Use this only on a trusted local network and only with devices you are authorized to manage. For older Android versions or devices using classic TCP/IP debugging, connect by USB and select **Enable TCP/IP (USB)**, then enter the phone's Wi-Fi IP with port `5555` in **Connect Wi-Fi**. Use this legacy mode only on a trusted network; it is different from Android 11+ Wireless Debugging.
 
 ## Optional ACBridge companion
 
