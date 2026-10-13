@@ -25,6 +25,33 @@ from PySide6.QtWidgets import (
 APP_NAME = "ADB App Manager"
 
 
+def _host_tool_env() -> dict[str, str]:
+    """Return an environment safe for launching host binaries from a frozen app.
+
+    PyInstaller one-file builds prepend their extraction directory to
+    LD_LIBRARY_PATH. Passing that to the system ADB executable can make ADB
+    load the bundled libstdc++ instead of the host version and fail with
+    GLIBCXX/CXXABI symbol errors. Restore the original loader path for every
+    subprocess that invokes ADB, not only the general command worker.
+    """
+    child_env = os.environ.copy()
+    if sys.platform.startswith("linux") and getattr(sys, "frozen", False):
+        original = child_env.pop("LD_LIBRARY_PATH_ORIG", None)
+        if original is not None:
+            if original:
+                child_env["LD_LIBRARY_PATH"] = original
+            else:
+                child_env.pop("LD_LIBRARY_PATH", None)
+        else:
+            current = child_env.get("LD_LIBRARY_PATH", "")
+            safe_paths = [p for p in current.split(":") if p and "_MEI" not in p]
+            if safe_paths:
+                child_env["LD_LIBRARY_PATH"] = ":".join(safe_paths)
+            else:
+                child_env.pop("LD_LIBRARY_PATH", None)
+    return child_env
+
+
 # Conservative, exact-package recommendations adapted from public debloat research.
 # These are conditional suggestions, not guarantees. Never auto-remove any package.
 def parse_package_names(output: str) -> list[str]:
@@ -98,33 +125,12 @@ class Worker(QThread):
 
     def run(self) -> None:
         try:
-            # PyInstaller adjusts LD_LIBRARY_PATH so the frozen GUI can load its
-            # bundled libraries. Do not pass that override to system tools such
-            # as /usr/bin/adb: its system libraries may need newer C++ symbols.
-            child_env = os.environ.copy()
-            if sys.platform.startswith("linux") and getattr(sys, "frozen", False):
-                # PyInstaller's one-file bootloader prepends its temporary
-                # extraction directory (_MEI...) to LD_LIBRARY_PATH. Never let
-                # that bundled path override system libraries used by host ADB.
-                original_ld_library_path = child_env.pop("LD_LIBRARY_PATH_ORIG", None)
-                if original_ld_library_path is not None:
-                    child_env["LD_LIBRARY_PATH"] = original_ld_library_path
-                else:
-                    current_ld_library_path = child_env.get("LD_LIBRARY_PATH", "")
-                    safe_paths = [
-                        path for path in current_ld_library_path.split(":")
-                        if path and "_MEI" not in path
-                    ]
-                    if safe_paths:
-                        child_env["LD_LIBRARY_PATH"] = ":".join(safe_paths)
-                    else:
-                        child_env.pop("LD_LIBRARY_PATH", None)
             proc = subprocess.run(
                 self.command,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
-                env=child_env,
+                env=_host_tool_env(),
             )
             output = (proc.stdout or "").strip()
             error = (proc.stderr or "").strip()
@@ -152,10 +158,10 @@ class InventoryWorker(QThread):
         local_port = None
         prefix = [self.adb, "-s", self.serial]
         try:
-            launch = subprocess.run(prefix + ["shell", "am", "start", "-n", "com.nightlab.ambridge/.MainActivity"], capture_output=True, text=True, timeout=30)
+            launch = subprocess.run(prefix + ["shell", "am", "start", "-n", "com.nightlab.ambridge/.MainActivity"], capture_output=True, text=True, timeout=30, env=_host_tool_env())
             if launch.returncode != 0 or "error" in (launch.stderr + launch.stdout).lower():
                 raise RuntimeError((launch.stderr or launch.stdout or "Could not open NightLab AMBridge").strip())
-            forward = subprocess.run(prefix + ["forward", "tcp:0", "tcp:39876"], capture_output=True, text=True, timeout=20)
+            forward = subprocess.run(prefix + ["forward", "tcp:0", "tcp:39876"], capture_output=True, text=True, timeout=20, env=_host_tool_env())
             if forward.returncode != 0:
                 raise RuntimeError((forward.stderr or forward.stdout or "ADB port forwarding failed").strip())
             try:
@@ -185,7 +191,7 @@ class InventoryWorker(QThread):
             self.done.emit(None, str(exc))
         finally:
             if local_port is not None:
-                subprocess.run(prefix + ["forward", "--remove", f"tcp:{local_port}"], capture_output=True, text=True, timeout=15)
+                subprocess.run(prefix + ["forward", "--remove", f"tcp:{local_port}"], capture_output=True, text=True, timeout=15, env=_host_tool_env())
 
 
 class MainWindow(QMainWindow):
