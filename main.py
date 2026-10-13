@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         actions.addStretch(1)
         root.addLayout(actions)
         tools = QHBoxLayout()
-        for label, callback in [("Shell command", self.shell_command), ("Upload files", self.upload_files), ("Reboot", self.reboot_device), ("Save preset", self.save_preset), ("Load preset", self.load_preset)]:
+        for label, callback in [("Shell command", self.shell_command), ("Upload files", self.upload_files), ("Reboot", self.reboot_device), ("Enable TCP/IP (USB)", self.enable_legacy_tcpip), ("Save preset", self.save_preset), ("Load preset", self.load_preset)]:
             button = QPushButton(label)
             button.clicked.connect(callback)
             tools.addWidget(button)
@@ -405,6 +405,38 @@ class MainWindow(QMainWindow):
             return False
         port = int(port_text)
         return 1 <= port <= 65535 and all(ch.isalnum() or ch in ".-_" for ch in host)
+
+    def enable_legacy_tcpip(self) -> None:
+        if not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Select an authorized Android device connected by USB first.")
+            return
+        if ":" in self.device_id:
+            QMessageBox.warning(
+                self, APP_NAME,
+                "Select the phone's USB connection first. This workflow switches ADB to TCP/IP on port 5555 and is intended mainly for Android 10 and older."
+            )
+            return
+        if not self._confirmed(
+            "Enable legacy TCP/IP debugging?",
+            "This sends 'adb tcpip 5555' to the selected device. Connect your computer and phone to the same trusted Wi-Fi network. A reboot or disabling network debugging may be needed to turn it off.",
+        ):
+            return
+        adb = self.adb_path()
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        self.run_async(
+            [adb, "-s", self.device_id, "tcpip", "5555"],
+            self._legacy_tcpip_enabled,
+            timeout=45,
+        )
+
+    def _legacy_tcpip_enabled(self, output: str) -> None:
+        self.log_message("Legacy TCP/IP mode: " + (output or "ADB command completed."))
+        QMessageBox.information(
+            self, "TCP/IP mode enabled",
+            "If ADB reports that it is restarting in TCP mode on port 5555, find your phone's Wi-Fi IP address in Android Settings. Then use Connect Wi-Fi and enter IP:5555. This legacy method is not the same as Android 11+ Wireless Debugging pairing."
+        )
 
     def wireless_connect(self) -> None:
         endpoint, ok = QInputDialog.getText(
