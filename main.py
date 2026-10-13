@@ -327,13 +327,32 @@ class MainWindow(QMainWindow):
         return QMessageBox.question(self, title, text, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel) == QMessageBox.StandardButton.Yes
 
     def _package_action(self, action: str) -> None:
-        package = self.selected_package()
+        packages = self.selected_packages()
         adb = self.adb_path()
-        if not package or not adb or not self.device_id:
+        if not packages or not adb or not self.device_id:
             return
+        if len(packages) > 1:
+            if not self._confirmed(f"Batch {action}?", f"{action.title()} {len(packages)} selected packages for user 0?\n\nReview every package carefully; system packages may be critical."):
+                return
+            def run_next(index: int = 0) -> None:
+                if index >= len(packages):
+                    self.log_message(f"Batch {action} queue finished.")
+                    self.load_packages()
+                    return
+                package = packages[index]
+                if action == "uninstall":
+                    args = [adb, "-s", self.device_id, "shell", "pm", "uninstall", "--user", "0", package]
+                elif action == "disable":
+                    args = [adb, "-s", self.device_id, "shell", "pm", "disable-user", "--user", "0", package]
+                else:
+                    args = [adb, "-s", self.device_id, "shell", "pm", "enable", "--user", "0", package]
+                self.run_async(args, lambda output: (self.log_message(f"{action.title()} {package}: {output}"), run_next(index + 1)), timeout=60)
+            run_next()
+            return
+        package = packages[0]
         if action == "uninstall":
             title = "Uninstall for current user?"
-            message = f"Run pm uninstall --user 0 for:\n\n{package}\n\nThis may disable phone features. The system image APK usually remains installed."
+            message = f"Run pm uninstall --user 0 for:\n\n{package}\n\nThe system APK usually remains on the device."
             args = [adb, "-s", self.device_id, "shell", "pm", "uninstall", "--user", "0", package]
         elif action == "disable":
             title = "Disable package?"
