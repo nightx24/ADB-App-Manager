@@ -104,20 +104,22 @@ class MainActivity : Activity() {
                             server.accept().use { client ->
                                 client.soTimeout = 15000
                                 val reader = BufferedReader(InputStreamReader(client.getInputStream(), Charsets.UTF_8))
-                                val requestLine = reader.readLine() ?: return@use
-                                while (true) {
-                                    val header = reader.readLine() ?: break
-                                    if (header.isEmpty()) break
-                                }
-                                val isInventoryRequest = requestLine.startsWith("GET /v1/apps ")
-                                val body = if (isInventoryRequest) buildInventoryJson().toString().toByteArray(Charsets.UTF_8)
-                                    else JSONObject().put("error", "not_found").toString().toByteArray(Charsets.UTF_8)
-                                val status = if (isInventoryRequest) "200 OK" else "404 Not Found"
-                                val headers = "HTTP/1.1 $status\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${body.size}\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n"
-                                client.getOutputStream().apply {
-                                    write(headers.toByteArray(Charsets.UTF_8))
-                                    write(body)
-                                    flush()
+                                val requestLine = reader.readLine()
+                                if (requestLine != null) {
+                                    while (true) {
+                                        val header = reader.readLine() ?: break
+                                        if (header.isEmpty()) break
+                                    }
+                                    val isInventoryRequest = requestLine.startsWith("GET /v1/apps ")
+                                    val body = if (isInventoryRequest) buildInventoryJson().toString().toByteArray(Charsets.UTF_8)
+                                        else JSONObject().put("error", "not_found").toString().toByteArray(Charsets.UTF_8)
+                                    val status = if (isInventoryRequest) "200 OK" else "404 Not Found"
+                                    val headers = "HTTP/1.1 $status\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${body.size}\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n"
+                                    client.getOutputStream().apply {
+                                        write(headers.toByteArray(Charsets.UTF_8))
+                                        write(body)
+                                        flush()
+                                    }
                                 }
                             }
                         } catch (_: java.net.SocketTimeoutException) {
