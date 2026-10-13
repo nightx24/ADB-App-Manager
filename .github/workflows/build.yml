@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pyinstaller
       - name: Build executable
-        run: python -m PyInstaller --noconfirm --clean --windowed --name ADB-App-Manager main.py
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name ADB-App-Manager main.py
       - name: Package executable
         shell: bash
         run: |
