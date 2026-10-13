@@ -15,7 +15,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Multi-select batch enable, disable, and uninstall operations
 - Batch APK installation, multi-file upload to Downloads, and package data clearing
 - Interactive ADB shell, device reboot modes, and package-list presets
-- Optional NightLab AMBridge companion detection (`com.nightlab.ambridge`) and guided installation from a user-selected APK
+- Optional NightLab AMBridge companion with automatic app labels, icon retrieval, per-device local cache, and temporary ADB-forwarded communication
 - Automated Windows, Linux, AppImage, and Flatpak packaging through GitHub Actions
 
 ## Downloads
@@ -75,11 +75,13 @@ Use this only on a trusted local network and only with devices you are authorize
 
 ## Optional NightLab AMBridge companion
 
-When an authorized device is selected, the app checks for the companion package ID `com.nightlab.ambridge` and offers guided installation if it is missing. Use **AMBridge helper** to check again. Select an APK that you trust and have permission to use; this project does not bundle a companion APK. The filename does not establish an APK package ID or verify its publisher, so confirm the package ID after installation.
+The repository includes the Android companion source under `ambridge/` (application ID `com.nightlab.ambridge`, Android 10+). The desktop app checks for it when a device is selected and offers guided installation if it is missing. Use **AMBridge helper** to refresh app metadata or install the companion APK.
 
-Keep the phone awake and unlocked during setup. Installation may require Android settings that allow installation through ADB. Grant only permissions documented by the companion maintainer.
+When AMBridge is installed, **Load packages** launches the companion and requests its installed-app labels, icons, package IDs, and version details over a temporary ADB-forwarded HTTP connection. The Android endpoint binds to device loopback, serves read-only metadata, and does not upload app inventory to a remote server. The desktop removes the temporary ADB port forward after the request and caches the latest metadata locally per device.
 
-**Current limitation:** this project checks for `com.nightlab.ambridge` and provides installation guidance only. It does not read a companion data-exchange protocol, so package rows still show package IDs rather than companion-provided app names/icons. **Load packages** refreshes this app’s existing package inventory, not companion metadata. Names/icons integration needs a documented interface or protocol; it will not be guessed.
+The **Build NightLab AMBridge APK** workflow builds a debug APK and uploads it as a workflow artifact. When a `v*` tag is built, the workflow also attaches the companion APK to that GitHub Release. Debug APKs are for testing; they are not production-signed.
+
+Keep the phone awake and unlocked during the first connection. The companion needs the package-inventory permission to show all installed apps. Android can stop background activities under memory pressure; if metadata retrieval fails, reopen AMBridge and retry. Real-device testing is still required across Android versions and device manufacturers.
 
 ## Safety notes
 
