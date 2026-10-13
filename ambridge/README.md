@@ -4,7 +4,7 @@ Android companion for the independent NightLab ADB App Manager project.
 
 - **Application ID:** `com.nightlab.ambridge`
 - **Version:** 1.0.0
-- **Minimum Android:** 8.0 (API 26)
+- **Minimum Android:** 10 (API 29)
 - **Purpose:** Export locally installed app labels, package IDs, versions, app type, and PNG icons for desktop metadata import.
 
 ## What this first version does
