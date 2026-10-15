@@ -7,7 +7,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Detect ADB and connected Android devices
 - Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
-- Conservative exact-package debloat guidance plus a searchable OEM Debloat Guide for OxygenOS/ColorOS, Xiaomi HyperOS/MIUI and Samsung One UI, showing risk levels, feature impacts and dependency caveats
+- Conservative exact-package debloat guidance plus a searchable OEM Debloat Guide for OxygenOS/ColorOS, Xiaomi HyperOS/MIUI/POCO, Samsung One UI and Vivo/iQOO, showing risk levels, feature impacts and dependency caveats
 - Visible package checkboxes, Select all visible, Clear selection, and checked multi-select batch operations
 - Uninstall an app for the current Android user (does not remove the APK from the system partition)
 - Disable and re-enable packages
@@ -90,7 +90,7 @@ Package operations can disable important Android features. Review the package na
 
 ## OEM debloat guide
 
-Open **Device tools → OEM Debloat Guide** to search common OnePlus/OPlus/HeyTap/Google package IDs and review their purpose, risk, and known or uncertain feature dependencies. It is a curated reference, not a universal complete list: package names and dependencies vary by model, region, Android version, and OxygenOS build. The guide never removes anything automatically; it can only select matching installed packages in the App library for review. See [OXYGENOS_DEBLOAT_GUIDE.md](OXYGENOS_DEBLOAT_GUIDE.md) for the full reference and recovery notes.
+Open **Device tools → OEM Debloat Guide** to search common OnePlus/OPlus/HeyTap/Google, Xiaomi/POCO, Samsung and Vivo/iQOO package IDs and review their purpose, risk, and known or uncertain feature dependencies. It is a curated reference, not a universal complete list: package names and dependencies vary by model, region, Android version, and OxygenOS build. The guide never removes anything automatically; it can only select matching installed packages in the App library for review. See [OXYGENOS_DEBLOAT_GUIDE.md](OXYGENOS_DEBLOAT_GUIDE.md) for the full reference and recovery notes.
 
 ## Debloat recommendation safety
 
