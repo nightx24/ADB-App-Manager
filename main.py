@@ -669,6 +669,13 @@ class MainWindow(QMainWindow):
         actions = QHBoxLayout(actions_panel)
         actions.setContentsMargins(12, 10, 12, 10)
         actions.setSpacing(8)
+        self.selection_summary = QLabel("0 selected")
+        self.selection_summary.setObjectName("selectionSummary")
+        self.selection_summary.setMinimumWidth(115)
+        self.selection_summary.setToolTip(
+            "Checked packages remain selected while you search or change filters."
+        )
+        actions.addWidget(self.selection_summary)
         self.uninstall_btn = QPushButton("Uninstall for user")
         self.uninstall_btn.clicked.connect(self.uninstall_package)
         self.disable_btn = QPushButton("Disable")
@@ -818,6 +825,7 @@ class MainWindow(QMainWindow):
             QLabel#sideNote { color: #71819b; font-size: 11px; padding: 10px 3px; }
             QLabel#statValue { color: #f1f5f9; font-size: 20px; font-weight: 700; }
             QLabel#sectionTitle { color: #f1f5f9; font-size: 15px; font-weight: 700; }
+            QLabel#selectionSummary { color: #93c5fd; font-size: 12px; font-weight: 700; padding: 0 5px; }
             QLabel#infoNote { color: #9bb8e6; background: #12213a; border: 1px solid #263f66; border-radius: 9px; padding: 13px; }
             QFrame#statCard, QFrame#panel, QFrame#toolCard { background: #111b2d; border: 1px solid #263650; border-radius: 12px; }
             QFrame#statCard:hover, QFrame#toolCard:hover { border-color: #3a5277; }
@@ -1108,10 +1116,28 @@ class MainWindow(QMainWindow):
         return len(package_names.intersection({p.name for p in self.packages}))
 
     def _selection_changed(self) -> None:
-        enabled = bool(self.device_id and self.selected_packages())
+        selected = self.selected_packages()
+        has_device = bool(self.device_id)
+        enabled = bool(has_device and selected)
+        self.selection_summary.setText(
+            f"{len(selected)} selected" if selected else "0 selected"
+        )
+        self.selection_summary.setToolTip(
+            "Checked packages remain selected while you search or change filters. "
+            "Clear selection to remove all checked packages."
+        )
         self.uninstall_btn.setEnabled(enabled)
         self.disable_btn.setEnabled(enabled)
         self.enable_btn.setEnabled(enabled)
+        # Clearing app data is destructive and this action only targets one package.
+        self.clear_data_btn.setEnabled(has_device and len(selected) == 1)
+        self.clear_data_btn.setToolTip(
+            "Deletes data and settings for exactly one selected app."
+            if len(selected) == 1 else
+            "Select exactly one app to clear its data and settings."
+        )
+        self.install_btn.setEnabled(has_device)
+        self.ambridge_btn.setEnabled(has_device)
 
     def show_oem_debloat_guide(self) -> None:
         """Show a searchable, review-only OEM package guide; never execute actions from this dialog."""
