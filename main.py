@@ -144,6 +144,11 @@ OEM_DEBLOAT_GUIDE: list[dict[str, str]] = [
     {"package": "com.google.android.apps.chromecast.app", "app": "Google Home", "function": "Smart-home and Cast device management.", "risk": "Low — optional app", "impact": "Removes Google Home controls; keep it if you manage smart-home devices or Chromecast."},
     {"package": "com.google.ar.lens", "app": "Google Lens (variant)", "function": "Visual search and image recognition.", "risk": "Low — optional app", "impact": "Lens entry points may stop working in apps that rely on this package. Package may differ by build."},
     {"package": "com.google.android.apps.wellbeing", "app": "Digital Wellbeing", "function": "Screen-time, focus and bedtime tools.", "risk": "Conditional — feature loss", "impact": "Removes screen-time/focus dashboards and related features; don't remove if you rely on Focus Mode or bedtime routines."},
+    {"package": "com.oneplus.backuprestore", "app": "Clone Phone / OnePlus migration (variant)", "function": "Local device-to-device data migration on some OxygenOS builds.", "risk": "Conditional — feature loss", "impact": "Removes the matching migration tool. Use another tested transfer/backup method before removing; package names vary by version."},
+    {"package": "com.coloros.backuprestore", "app": "Clone Phone / ColorOS migration (variant)", "function": "OEM data transfer and backup/migration components on some builds.", "risk": "Review first — dependencies unclear", "impact": "May affect local migration, restore or related OEM backup flows. Confirm the exact app label and any remote-service dependency first."},
+    {"package": "com.google.android.apps.photos", "app": "Google Photos", "function": "Photo gallery, cloud backup and media management.", "risk": "Low — optional app", "impact": "Removes Google Photos UI and its photo backup/gallery features. Verify photos are backed up and another gallery is available."},
+    {"package": "com.google.android.googlequicksearchbox", "app": "Google app / Search / Assistant", "function": "Google search, Discover and some Assistant entry points.", "risk": "Conditional — feature loss", "impact": "May remove Google search widget, Discover feed, voice assistant entry points or integrations. Do not remove if you use these features."},
+    {"package": "com.coloros.childrenspace", "app": "Kids Space / Children's Space (variant)", "function": "Child-oriented profile or restricted-use environment on some builds.", "risk": "Conditional — feature loss", "impact": "Removes the child-mode app if this exact package is present. Package names and system integration vary by region/build."},
     {"package": "com.google.android.gms", "app": "Google Play services — KEEP", "function": "Core Google APIs, account/sync, push, location and app integration.", "risk": "High — do not remove", "impact": "Removing/disabling can break sign-in, push notifications, location and many apps. Not a debloat recommendation."},
     {"package": "com.android.providers.telephony", "app": "Telephony provider — KEEP", "function": "Core SMS/MMS and telephony database/provider.", "risk": "Critical — do not remove", "impact": "Can break SMS, telephony-related functions and emergency-related workflows. Never debloat."},
     {"package": "com.android.systemui", "app": "System UI — KEEP", "function": "Status bar, navigation, quick settings and lock screen.", "risk": "Critical — do not remove", "impact": "Can make the device difficult or impossible to use normally. Never debloat."},
@@ -558,10 +563,8 @@ class MainWindow(QMainWindow):
                 ("ADB reboot options", self.reboot_device),
                 ("Fastboot reboot options", self.fastboot_reboot_device),
             ]),
-            ("Package presets", "Save or restore package selections.", [
-                ("Save preset", self.save_preset), ("Load preset", self.load_preset)
-            ]),
-            ("OEM Debloat Guide", "Search common OxygenOS / ColorOS package IDs, functions, risk and known feature impacts. Suggestions are not universal guarantees.", [
+            ("Package presets & debloat guide", "Save or restore selections, or review OxygenOS / ColorOS package functions, risks and dependency caveats.", [
+                ("Save preset", self.save_preset), ("Load preset", self.load_preset),
                 ("Open OEM debloat guide", self.show_oem_debloat_guide)
             ]),
         ]:
