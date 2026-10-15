@@ -105,6 +105,62 @@ DEBLOAT_RECOMMENDATIONS: dict[str, tuple[str, str]] = {
 }
 
 
+
+# Curated OxygenOS / ColorOS debloat reference
+# This is a review guide, not an automatically safe-to-remove database.
+OEM_DEBLOAT_GUIDE: list[dict[str, str]] = [
+    {"package": "com.oneplus.gamespace", "app": "OnePlus Game Space", "function": "Game launcher, gaming tools and in-game overlay.", "risk": "Conditional — feature loss", "impact": "Loses Game Space overlay, game profiles and any gaming features integrated with this package. No universal package dependency guarantee; newer builds may use OPlus packages."},
+    {"package": "com.oplus.games", "app": "OPlus Games platform", "function": "OEM gaming hub / game services on some builds.", "risk": "Conditional — feature loss", "impact": "May affect Game Space or gaming recommendations. Package name and dependencies vary by OxygenOS build."},
+    {"package": "com.oneplus.brickmode", "app": "Zen Mode / Brick Mode (variant)", "function": "Focus or digital-wellbeing mode on some older builds.", "risk": "Conditional — feature loss", "impact": "Removes the matching focus feature if this exact package is present. Other versions use different package names; verify before acting."},
+    {"package": "com.oneplus.zen", "app": "Zen Mode (variant)", "function": "Focus / screen-time restriction feature on some builds.", "risk": "Conditional — feature loss", "impact": "Zen Mode may stop working. This package ID is not universal across OxygenOS versions."},
+    {"package": "net.oneplus.forums", "app": "OnePlus Community (variant)", "function": "Brand community forum application.", "risk": "Low — optional app", "impact": "Removes the community app only if this exact package is installed; does not remove the phone's core forum/network framework."},
+    {"package": "com.oneplus.community", "app": "OnePlus Community (variant)", "function": "Brand community forum application.", "risk": "Low — optional app", "impact": "Only the community app is expected to be lost. Package ID varies by region and OS release."},
+    {"package": "com.oneplus.membership", "app": "OnePlus Membership (variant)", "function": "Membership, offers or brand account benefits.", "risk": "Low — optional app", "impact": "Loses the membership/promotions app. Check whether warranty or regional account features rely on it."},
+    {"package": "com.oplus.orelax", "app": "O Relax", "function": "Relaxation audio and ambient sound application.", "risk": "Low — optional app", "impact": "Removes O Relax content and shortcuts; package may be absent on some builds."},
+    {"package": "com.oplus.omoji", "app": "Omoji", "function": "OEM avatar creation and related effects.", "risk": "Conditional — feature loss", "impact": "Omoji avatar features may disappear from supported apps or personalization surfaces. Exact integration differs by OS version."},
+    {"package": "com.oplus.riderMode", "app": "Rider Mode", "function": "Riding/driving focus features on supported regions/builds.", "risk": "Conditional — feature loss", "impact": "May remove ride-mode automation or its UI. Confirm the package's label on your own phone before changing it."},
+    {"package": "com.oplus.linker", "app": "OPlus Linker / cross-device service", "function": "May support cross-device connection or integration features.", "risk": "Review first — dependencies unclear", "impact": "Could break tablet/PC/device linking on builds that use it. Public lists disagree on its exact role; do not treat as universally safe."},
+    {"package": "com.redteamobile.roaming", "app": "ORoaming / travel data", "function": "Regional travel roaming or virtual-SIM service.", "risk": "Conditional — feature loss", "impact": "May disable the OEM travel-data service. Do not remove if you use it; mobile network core services are separate and must be kept."},
+    {"package": "com.heytap.usercenter", "app": "HeyTap / OPPO account center", "function": "OEM account sign-in and related account services.", "risk": "Review first — dependencies unclear", "impact": "May affect HeyTap cloud, account sync, themes or OEM apps. Keep if you use any HeyTap/OPlus account feature."},
+    {"package": "com.heytap.market", "app": "HeyTap App Market", "function": "OEM application store.", "risk": "Conditional — feature loss", "impact": "Removes the OEM store and its updates/recommendations. Keep Google Play Store or another trusted installer available."},
+    {"package": "com.heytap.mcs", "app": "HeyTap Push Service", "function": "Push notifications for some OEM applications.", "risk": "Review first — dependencies unclear", "impact": "May stop notifications from dependent HeyTap/OPlus apps. Google push notifications are separate, but some OEM apps may lose alerts."},
+    {"package": "com.oplus.aiunit", "app": "OPlus AI Unit", "function": "OEM AI framework/service used by selected features on some builds.", "risk": "Review first — dependencies unclear", "impact": "Could affect AI features, assistant surfaces or other OPlus components. Do not assume it is telemetry-only or safe to remove."},
+    {"package": "com.oplus.ai.service", "app": "OPlus AI Service (variant)", "function": "Possible OEM AI service; availability and purpose vary by build.", "risk": "Review first — dependencies unclear", "impact": "Could affect AI search, summaries, translation or camera/gallery features if linked on your OS. Verify app label and dependencies first."},
+    {"package": "com.oplus.statistics.rom", "app": "OPlus statistics / user experience service", "function": "OEM statistics or user-experience reporting on some ColorOS-based builds.", "risk": "Review first — verify build", "impact": "May affect diagnostics or OEM services; exact behavior varies. Do not promise battery or performance gains from removing it."},
+    {"package": "com.oplus.logkit", "app": "OPlus Log Kit", "function": "System logging and diagnostic collection.", "risk": "Review first — verify build", "impact": "Could reduce access to OEM diagnostics/logging. Do not remove if you need service diagnostics or if another system component depends on it."},
+    {"package": "com.oplus.crashbox", "app": "OPlus CrashBox", "function": "OEM crash/diagnostic reporting on some builds.", "risk": "Review first — verify build", "impact": "May affect crash reports or service troubleshooting; removing it is not guaranteed to improve battery life."},
+    {"package": "com.opos.ads", "app": "OPlus commercial/ad service (variant)", "function": "Commercial content or promotional services on some builds.", "risk": "Review first — verify build", "impact": "May remove promotional content but can be linked to OEM content surfaces. Confirm package label and region first."},
+    {"package": "com.coloros.floatassistant", "app": "Smart Sidebar / floating assistant (variant)", "function": "Floating shortcuts or sidebar tools.", "risk": "Conditional — feature loss", "impact": "May disable floating sidebar/shortcut features. Don't remove if you use the sidebar or accessibility shortcuts."},
+    {"package": "com.oplus.smartengine", "app": "OPlus Smart Engine", "function": "OEM smart-card, context or system recommendation features on some builds.", "risk": "Review first — dependencies unclear", "impact": "May affect Shelf/smart cards or other context features. Avoid blind removal because its role differs by OS version."},
+    {"package": "com.microsoft.appmanager", "app": "Microsoft App Manager / Link to Windows (variant)", "function": "Microsoft cross-device integration on some phones.", "risk": "Low — optional app", "impact": "May disable Link to Windows integration. Package IDs vary; keep if you use phone-to-PC sync."},
+    {"package": "com.netflix.mediaclient", "app": "Netflix", "function": "Streaming application.", "risk": "Low — optional app", "impact": "Removes Netflix from this user; it can usually be reinstalled from a trusted app store if compatible."},
+    {"package": "com.google.android.gm", "app": "Gmail", "function": "Email client.", "risk": "Low — optional app", "impact": "Only removes the Gmail app; email accounts and Google Play Services are separate. Keep another email app if needed."},
+    {"package": "com.google.android.apps.docs", "app": "Google Drive", "function": "Cloud storage app; package may also be used by Docs integrations.", "risk": "Low — optional app", "impact": "Removes the Drive UI app. Verify that files are synced and another client is available before removal."},
+    {"package": "com.google.android.apps.meetings", "app": "Google Meet (variant)", "function": "Video calling application.", "risk": "Low — optional app", "impact": "Removes Meet if this package ID is used; some builds use a different package name."},
+    {"package": "com.google.android.videos", "app": "Google TV / Play Movies (variant)", "function": "Video library / streaming app.", "risk": "Low — optional app", "impact": "Removes this video app; purchased content and other Google services are separate."},
+    {"package": "com.google.android.youtube", "app": "YouTube", "function": "Video streaming app.", "risk": "Low — optional app", "impact": "Removes YouTube app only. You may lose YouTube links opening in the app; browser access remains possible."},
+    {"package": "com.google.android.apps.youtube.music", "app": "YouTube Music", "function": "Music streaming app.", "risk": "Low — optional app", "impact": "Removes YouTube Music; downloaded music inside the app will no longer be accessible through it."},
+    {"package": "com.google.android.apps.subscriptions.red", "app": "Google One", "function": "Google One subscription/storage management app.", "risk": "Low — optional app", "impact": "Removes the management app, not necessarily the underlying subscription or cloud-stored data."},
+    {"package": "com.google.android.apps.chromecast.app", "app": "Google Home", "function": "Smart-home and Cast device management.", "risk": "Low — optional app", "impact": "Removes Google Home controls; keep it if you manage smart-home devices or Chromecast."},
+    {"package": "com.google.ar.lens", "app": "Google Lens (variant)", "function": "Visual search and image recognition.", "risk": "Low — optional app", "impact": "Lens entry points may stop working in apps that rely on this package. Package may differ by build."},
+    {"package": "com.google.android.apps.wellbeing", "app": "Digital Wellbeing", "function": "Screen-time, focus and bedtime tools.", "risk": "Conditional — feature loss", "impact": "Removes screen-time/focus dashboards and related features; don't remove if you rely on Focus Mode or bedtime routines."},
+    {"package": "com.google.android.gms", "app": "Google Play services — KEEP", "function": "Core Google APIs, account/sync, push, location and app integration.", "risk": "High — do not remove", "impact": "Removing/disabling can break sign-in, push notifications, location and many apps. Not a debloat recommendation."},
+    {"package": "com.android.providers.telephony", "app": "Telephony provider — KEEP", "function": "Core SMS/MMS and telephony database/provider.", "risk": "Critical — do not remove", "impact": "Can break SMS, telephony-related functions and emergency-related workflows. Never debloat."},
+    {"package": "com.android.systemui", "app": "System UI — KEEP", "function": "Status bar, navigation, quick settings and lock screen.", "risk": "Critical — do not remove", "impact": "Can make the device difficult or impossible to use normally. Never debloat."},
+    {"package": "com.android.settings", "app": "Android Settings — KEEP", "function": "System settings application.", "risk": "Critical — do not remove", "impact": "Can remove access to device configuration and recovery options. Never debloat."},
+    {"package": "com.google.android.inputmethod.latin", "app": "Gboard — KEEP unless replacement tested", "function": "Google keyboard / input method.", "risk": "High — keep a replacement first", "impact": "Removing the only enabled keyboard can prevent text entry during setup or recovery. Install and test another keyboard first."},
+    {"package": "com.oplus.launcher", "app": "OPlus launcher — KEEP", "function": "OEM home screen and launcher integration.", "risk": "High — keep", "impact": "May break home screen, gestures, widgets or recent-task integrations. Do not remove based on third-party launcher availability alone."},
+    {"package": "com.oneplus.launcher", "app": "OnePlus launcher — KEEP", "function": "OEM home screen and launcher integration on some builds.", "risk": "High — keep", "impact": "May break home screen, gestures, widgets or recents integration. Keep even if a third-party launcher is installed."},
+]
+
+for _guide_entry in OEM_DEBLOAT_GUIDE:
+    if not _guide_entry["risk"].startswith(("High", "Critical")):
+        DEBLOAT_RECOMMENDATIONS.setdefault(
+            _guide_entry["package"],
+            (_guide_entry["risk"], _guide_entry["impact"]),
+        )
+
+
 @dataclass
 class Package:
     name: str
@@ -241,6 +297,7 @@ class MainWindow(QMainWindow):
         self._history_path = self._app_data_dir / "uninstall-history.json"
         self._ambridge_cache_path = self._app_data_dir / "ambridge-inventory-cache.json"
         self._ambridge_prompted_devices: set[str] = set()
+        self._checked_packages: set[str] = set()
         self.worker: Worker | None = None
         self._build_ui()
         self._style_ui()
@@ -415,6 +472,12 @@ class MainWindow(QMainWindow):
         self.search.setPlaceholderText("Search by app name or package ID…")
         self.search.textChanged.connect(self.render_packages)
         toolbar.addWidget(self.search, 1)
+        self.select_all_btn = QPushButton("Select all visible")
+        self.select_all_btn.clicked.connect(lambda: self._set_visible_checked(True))
+        toolbar.addWidget(self.select_all_btn)
+        self.clear_selection_btn = QPushButton("Clear selection")
+        self.clear_selection_btn.clicked.connect(self._clear_package_selection)
+        toolbar.addWidget(self.clear_selection_btn)
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["All packages", "Third-party apps", "System apps", "Recommended (review first)"])
         self.filter_combo.currentIndexChanged.connect(self.render_packages)
@@ -426,7 +489,7 @@ class MainWindow(QMainWindow):
         apps.addLayout(toolbar)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["App name / package", "Classification", "Debloat guidance"])
+        self.table.setHorizontalHeaderLabels(["☑ Select / app name / package", "Classification", "Debloat guidance"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -436,6 +499,7 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.table.itemChanged.connect(self._table_item_changed)
         apps.addWidget(self.table, 1)
 
         actions_panel = QFrame()
@@ -496,6 +560,9 @@ class MainWindow(QMainWindow):
             ]),
             ("Package presets", "Save or restore package selections.", [
                 ("Save preset", self.save_preset), ("Load preset", self.load_preset)
+            ]),
+            ("OEM Debloat Guide", "Search common OxygenOS / ColorOS package IDs, functions, risk and known feature impacts. Suggestions are not universal guarantees.", [
+                ("Open OEM debloat guide", self.show_oem_debloat_guide)
             ]),
         ]:
             card = QFrame()
@@ -688,6 +755,7 @@ class MainWindow(QMainWindow):
         self.device_id = self.device_combo.currentData()
         self.device_stat.setText(self.device_id or "No device selected")
         self.packages = []
+        self._checked_packages.clear()
         self._ambridge_metadata = self._read_ambridge_cache(self.device_id) if self.device_id else {}
         self.package_stat.setText("Not loaded")
         self.third_party_stat.setText("—")
@@ -760,8 +828,11 @@ class MainWindow(QMainWindow):
                 continue
             rows.append(package)
         self.table.setRowCount(len(rows))
+        self.table.blockSignals(True)
         for index, package in enumerate(rows):
             name_item = QTableWidgetItem(package.label or package.name)
+            name_item.setFlags(name_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            name_item.setCheckState(Qt.CheckState.Checked if package.name in self._checked_packages else Qt.CheckState.Unchecked)
             name_item.setData(Qt.ItemDataRole.UserRole, package.name)
             name_item.setToolTip(f"Package: {package.name}\n" + (package.recommendation_note or "No conservative recommendation is available for this package."))
             if package.icon_base64:
@@ -776,31 +847,175 @@ class MainWindow(QMainWindow):
             recommendation_item = QTableWidgetItem(package.recommendation)
             recommendation_item.setToolTip(package.recommendation_note or "This package is not in the conservative recommendation list.")
             self.table.setItem(index, 2, recommendation_item)
+        self.table.blockSignals(False)
         self.statusBar().showMessage(f"Showing {len(rows)} of {len(self.packages)} packages")
         self._selection_changed()
 
     def selected_packages(self) -> list[str]:
-        rows = sorted({index.row() for index in self.table.selectionModel().selectedRows()})
-        values = []
-        for row in rows:
-            item = self.table.item(row, 0)
+        """Return packages checked in the list plus rows explicitly selected with the mouse."""
+        values = set(self._checked_packages)
+        for index in self.table.selectionModel().selectedRows():
+            item = self.table.item(index.row(), 0)
             if item:
-                values.append(item.data(Qt.ItemDataRole.UserRole))
+                package = item.data(Qt.ItemDataRole.UserRole)
+                if package:
+                    values.add(package)
         if not values and self.table.currentRow() >= 0:
             item = self.table.item(self.table.currentRow(), 0)
             if item:
-                values.append(item.data(Qt.ItemDataRole.UserRole))
-        return values
+                package = item.data(Qt.ItemDataRole.UserRole)
+                if package:
+                    values.add(package)
+        return sorted(values)
 
     def selected_package(self) -> str | None:
         selected = self.selected_packages()
         return selected[0] if selected else None
+
+    def _table_item_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() != 0:
+            return
+        package = item.data(Qt.ItemDataRole.UserRole)
+        if not package:
+            return
+        if item.checkState() == Qt.CheckState.Checked:
+            self._checked_packages.add(package)
+        else:
+            self._checked_packages.discard(package)
+        self._selection_changed()
+
+    def _set_visible_checked(self, checked: bool) -> None:
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if not item:
+                continue
+            package = item.data(Qt.ItemDataRole.UserRole)
+            if not package:
+                continue
+            if checked:
+                self._checked_packages.add(package)
+                item.setCheckState(Qt.CheckState.Checked)
+            else:
+                self._checked_packages.discard(package)
+                item.setCheckState(Qt.CheckState.Unchecked)
+        self._selection_changed()
+        self.log_message(f"{'Checked' if checked else 'Unchecked'} visible package rows.")
+
+    def _clear_package_selection(self) -> None:
+        self._checked_packages.clear()
+        self.table.clearSelection()
+        self.table.blockSignals(True)
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item:
+                item.setCheckState(Qt.CheckState.Unchecked)
+        self.table.blockSignals(False)
+        self._selection_changed()
+
+    def _select_packages_in_library(self, package_names: set[str]) -> int:
+        self._checked_packages.update(package_names)
+        self.search.clear()
+        self.filter_combo.setCurrentIndex(0)
+        self.render_packages()
+        self._show_page(1)
+        return len(package_names.intersection({p.name for p in self.packages}))
 
     def _selection_changed(self) -> None:
         enabled = bool(self.device_id and self.selected_packages())
         self.uninstall_btn.setEnabled(enabled)
         self.disable_btn.setEnabled(enabled)
         self.enable_btn.setEnabled(enabled)
+
+    def show_oem_debloat_guide(self) -> None:
+        """Show a searchable, review-only OEM package guide; never execute actions from this dialog."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("OxygenOS / ColorOS OEM Debloat Guide")
+        dialog.resize(1180, 650)
+        layout = QVBoxLayout(dialog)
+        note = QLabel(
+            "This is a curated reference, not a universal complete list or a guarantee of safety. "
+            "Package names and dependencies vary by model, region, Android version and OxygenOS build. "
+            "Only packages actually installed on your phone can be selected in the App library. "
+            "No package is removed automatically."
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        search = QLineEdit()
+        search.setPlaceholderText("Search package ID, app name, function, risk or dependency…")
+        layout.addWidget(search)
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels(["Package ID", "App / function", "Risk", "Features affected / dependencies", "On connected phone"])
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setAlternatingRowColors(True)
+        table.verticalHeader().setVisible(False)
+        for col, mode in enumerate([
+            QHeaderView.ResizeMode.ResizeToContents,
+            QHeaderView.ResizeMode.ResizeToContents,
+            QHeaderView.ResizeMode.ResizeToContents,
+            QHeaderView.ResizeMode.Stretch,
+            QHeaderView.ResizeMode.ResizeToContents,
+        ]):
+            table.horizontalHeader().setSectionResizeMode(col, mode)
+        layout.addWidget(table, 1)
+        button_row = QHBoxLayout()
+        select_btn = QPushButton("Select matching installed packages in App Library")
+        close_btn = QPushButton("Close")
+        button_row.addWidget(select_btn)
+        button_row.addStretch(1)
+        button_row.addWidget(close_btn)
+        layout.addLayout(button_row)
+
+        installed = {p.name for p in self.packages}
+        def populate() -> None:
+            needle = search.text().strip().casefold()
+            table.setRowCount(0)
+            for entry in OEM_DEBLOAT_GUIDE:
+                searchable = " ".join(entry.values()).casefold()
+                if needle and needle not in searchable:
+                    continue
+                row = table.rowCount()
+                table.insertRow(row)
+                values = [
+                    entry["package"],
+                    entry["app"] + "\\n" + entry["function"],
+                    entry["risk"],
+                    entry["impact"],
+                    "Installed" if entry["package"] in installed else "Not detected / not loaded",
+                ]
+                for col, value in enumerate(values):
+                    item = QTableWidgetItem(value)
+                    item.setToolTip(value)
+                    if col == 0:
+                        item.setData(Qt.ItemDataRole.UserRole, entry["package"])
+                    table.setItem(row, col, item)
+        search.textChanged.connect(populate)
+        populate()
+
+        def select_matching() -> None:
+            chosen = {
+                item.data(Qt.ItemDataRole.UserRole)
+                for index in table.selectionModel().selectedRows()
+                if (item := table.item(index.row(), 0)) is not None
+            }
+            if not chosen:
+                QMessageBox.information(dialog, APP_NAME, "Select one or more guide rows first.")
+                return
+            if not self.packages:
+                QMessageBox.information(dialog, APP_NAME, "Load the connected phone's App library first. The guide does not assume packages are installed.")
+                return
+            matches = chosen.intersection({p.name for p in self.packages})
+            if not matches:
+                QMessageBox.information(dialog, APP_NAME, "None of the selected package IDs were found in the loaded package list for this phone.")
+                return
+            self._select_packages_in_library(matches)
+            self.log_message(f"Selected {len(matches)} guide package(s) in the App library for review only.")
+            dialog.accept()
+
+        select_btn.clicked.connect(select_matching)
+        close_btn.clicked.connect(dialog.accept)
+        dialog.exec()
 
     def _confirmed(self, title: str, text: str) -> bool:
         return QMessageBox.question(self, title, text, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel) == QMessageBox.StandardButton.Yes
@@ -1952,14 +2167,10 @@ class MainWindow(QMainWindow):
         except OSError as exc:
             QMessageBox.warning(self, APP_NAME, f"Could not load preset: {exc}")
             return
-        self.table.clearSelection()
-        matched = 0
-        for row in range(self.table.rowCount()):
-            item = self.table.item(row, 0)
-            if item and item.data(Qt.ItemDataRole.UserRole) in names:
-                self.table.selectRow(row)
-                matched += 1
-        self.log_message(f"Preset loaded: selected {matched} matching package(s) out of {len(names)}.")
+        matched_names = names.intersection({p.name for p in self.packages})
+        self._checked_packages.update(matched_names)
+        self.render_packages()
+        self.log_message(f"Preset loaded: checked {len(matched_names)} matching package(s) out of {len(names)}. Review before running any batch action.")
 
     def export_csv(self) -> None:
         if not self.packages:
