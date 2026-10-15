@@ -41,6 +41,7 @@ This is an independent project inspired by workflows found in [ADB AppControl](h
 - [ ] Connection history and device profiles
 
 ### Usability and safety
+- [x] Preserve the selected authorized device during refresh and report when no authorized device is available
 - [ ] Dark/light theme and adjustable font/list sizing
 - [ ] App metadata lookup links to independent public sources
 - [ ] ADB key-file protection using OS-provided secure storage where available
