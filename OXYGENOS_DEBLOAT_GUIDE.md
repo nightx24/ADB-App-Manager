@@ -52,7 +52,7 @@ This guide is built into ADB App Manager's **OEM Debloat Guide** window. It is a
 | `com.netflix.mediaclient` | Netflix | Streaming application. | **Low — optional app** | Removes Netflix from this user; it can usually be reinstalled from a trusted app store if compatible. |
 | `com.google.android.gm` | Gmail | Email client. | **Low — optional app** | Only removes the Gmail app; email accounts and Google Play Services are separate. Keep another email app if needed. |
 | `com.google.android.apps.docs` | Google Drive | Cloud storage app; package may also be used by Docs integrations. | **Low — optional app** | Removes the Drive UI app. Verify that files are synced and another client is available before removal. |
-| `com.google.android.apps.meetings` | Google Meet (variant) | Video calling application. | **Low — optional app** | Removes Meet if this package ID is used; some builds use a different package name. |
+| `com.google.android.apps.tachyon` | Google Meet | Video calling application. | **Low — optional app** | Removes Meet if this package ID is used; some builds use a different package name. |
 | `com.google.android.videos` | Google TV / Play Movies (variant) | Video library / streaming app. | **Low — optional app** | Removes this video app; purchased content and other Google services are separate. |
 | `com.google.android.youtube` | YouTube | Video streaming app. | **Low — optional app** | Removes YouTube app only. You may lose YouTube links opening in the app; browser access remains possible. |
 | `com.google.android.apps.youtube.music` | YouTube Music | Music streaming app. | **Low — optional app** | Removes YouTube Music; downloaded music inside the app will no longer be accessible through it. |
