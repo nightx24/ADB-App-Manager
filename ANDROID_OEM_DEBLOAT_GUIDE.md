@@ -212,3 +212,38 @@ Community-maintained package lists are useful clues but are not official depende
 | `com.miui.securitycenter` | POCO/MIUI/HyperOS: Security Center — KEEP | OEM security, permissions and device-management features. | **Critical — keep** | Same package already listed for Xiaomi. Do not disable or uninstall. |
 | `com.mi.android.globalminusscreen` | POCO/MIUI/HyperOS: App Vault / left screen | Launcher side-screen integration on some global builds. | **Conditional — feature loss** | Same package already listed for Xiaomi. Prefer disabling the pane in Home Screen settings. |
 | `com.miui.home` | POCO/MIUI/HyperOS: POCO Launcher — KEEP | Stock launcher on many Xiaomi/POCO builds. | **Critical — keep** | Do not disable unless you have verified device-specific replacement and recovery. Package varies by launcher/build. |
+
+
+## ColorOS / realme UI package risk reference (user-supplied list)
+
+This supplemental reference covers common Android/AOSP, Google, HeyTap, ColorOS/OPlus and Qualcomm/MediaTek package IDs from a user-supplied list. Package names and behavior vary by device, region, chipset and OS version. The in-app list uses cautious labels and excludes entries marked **Critical** or **Review first** from one-click recommendations. Treat all entries as review hints, not verified universal dependency maps.
+
+### Risk tiers
+
+- 🔴 **Tier 1 — Critical:** do not disable/remove without device-specific verification; may affect telephony, security, protected input or core system behavior.
+- 🟡 **Tier 2 — Conditional:** may break a particular feature such as NFC, Android Auto, voice match, OEM casting or app cloning.
+- 🟢 **Tier 3 — Low:** usually optional UI or standalone apps, but still verify the exact package and retain a recovery plan.
+
+### Critical / review-first examples
+
+| Package | Cautious guidance |
+|---|---|
+| `com.oplus.encryption` | Keep; security/encryption-related role is build-specific and should not be disabled blindly. |
+| `com.android.stk` | Keep unless carrier SIM Toolkit behavior is understood. |
+| `com.coloros.phonemanager` | Keep; may provide permissions, security and storage-management features. |
+| `com.oplus.securitykeyboard` | Keep; secure input may be required for protected fields. |
+| `com.oplus.location`, `com.oplus.locationproxy` | Keep if uncertain; location integration may depend on firmware-specific components. |
+| `com.mediatek.omacp`, `com.qualcomm.qti.uim`, `com.qualcomm.qti.modemtestmode` | Keep unless chipset/carrier-specific dependencies are verified. |
+| `com.google.android.as`, `com.google.android.as.oss`, `com.oplus.deepthinker` | Review first; these may support on-device intelligence or OEM optimization, not just telemetry. |
+| `com.android.nfc` | Keep if you use NFC payments, tags or tap-to-pair. |
+| `com.google.android.projection.gearhead` | Keep if you use Android Auto. |
+
+### Optional / feature-specific examples
+
+The in-app reference also covers screensavers, live-wallpaper picker, Google AdServices, location history, Family Link supervision, HeyTap Market, OPlus Cast/Games/Always-On Display/Theme Store, Bluetooth MIDI, Android Easter Egg, Traceur, Assistant, Files by Google, Digital Wellbeing, ColorOS Assistant Screen/Assistive Ball/Smart Sidebar/OShare, Android Text-to-Speech and Qualcomm wireless-display support. Their risk is feature- and firmware-dependent; absence of a feature is not proof a package is safe to remove.
+
+### Important limitations
+
+- The source list groups several package IDs under shared suffixes and gives totals of 15 disabled / 90 uninstalled, but the message does not enumerate 90 distinct package IDs individually. The app guide therefore adds only individually named IDs from the supplied text and does not invent the missing entries.
+- Some source descriptions use absolute claims such as “permanently break,” “safe,” or “zero dependencies.” Those claims have not been independently verified and are not presented as guarantees here.
+- Prefer reversible per-user disable operations where supported, test one package at a time, and keep a backup/recovery path. Never bulk-remove critical system, telephony, security, launcher, permissions or input packages.
