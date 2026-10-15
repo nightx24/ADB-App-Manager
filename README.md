@@ -7,7 +7,7 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Detect ADB and connected Android devices
 - Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
-- Conservative exact-package debloat guidance plus a searchable OxygenOS / ColorOS OEM Debloat Guide showing functions, risk levels, known feature impacts and uncertain dependencies
+- Conservative exact-package debloat guidance plus a searchable OEM Debloat Guide for OxygenOS/ColorOS, Xiaomi HyperOS/MIUI and Samsung One UI, showing risk levels, feature impacts and dependency caveats
 - Visible package checkboxes, Select all visible, Clear selection, and checked multi-select batch operations
 - Uninstall an app for the current Android user (does not remove the APK from the system partition)
 - Disable and re-enable packages
