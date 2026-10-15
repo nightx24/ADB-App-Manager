@@ -483,6 +483,10 @@ class MainWindow(QMainWindow):
                 ("Install APK(s)", self.install_apks),
                 ("Install split APK set", self.install_split_apks),
             ]),
+            ("App backup & restore", "Back up user-installed app APK files and restore them later.", [
+                ("Back up user apps", self.backup_user_apps),
+                ("Restore APK backup", self.restore_user_app_backup),
+            ]),
             ("Connection", "Configure older TCP/IP debugging.", [
                 ("Enable TCP/IP (USB)", self.enable_legacy_tcpip)
             ]),
@@ -1669,6 +1673,144 @@ class MainWindow(QMainWindow):
             self.run_async([adb, "-s", self.device_id, "push", path, "/sdcard/Download/" + Path(path).name],
                 lambda out: (self.log_message(f"Uploaded {Path(path).name}: {out}"), run_next(i + 1)), timeout=180)
         run_next()
+
+    def backup_user_apps(self) -> None:
+        """Back up APK files for third-party apps; Android app-private data is not included."""
+        adb = self.adb_path()
+        serial = self.device_id
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        if not serial:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        destination = QFileDialog.getExistingDirectory(self, "Choose backup destination folder")
+        if not destination:
+            return
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        root = Path(destination) / f"ADB-App-Manager-Backup-{stamp}"
+        try:
+            root.mkdir(parents=True, exist_ok=False)
+        except OSError as exc:
+            QMessageBox.warning(self, APP_NAME, f"Could not create backup folder:\n{exc}")
+            return
+        if not self._confirmed(
+            "Back up user apps",
+            f"Back up installable APK files for user-installed apps from {serial}?\n\n"
+            "This does not include app-private data, logins, settings, or Android-protected files. "
+            "Some apps may have no accessible APK path."
+        ):
+            try:
+                root.rmdir()
+            except OSError:
+                pass
+            return
+
+        state = {"packages": [], "index": 0, "backed_up": [], "failed": [], "manifest": []}
+        self.log_message(f"Starting user-app APK backup from {serial} to {root}")
+        def list_done(output: str) -> None:
+            state["packages"] = parse_package_names(output)
+            if not state["packages"]:
+                self.log_message("No user-installed packages were returned by Android.")
+                QMessageBox.information(self, APP_NAME, "No user-installed apps were found to back up.")
+                return
+            self.log_message(f"Found {len(state['packages'])} user-installed app(s). Backing up APK files…")
+            backup_next_package()
+        def backup_next_package() -> None:
+            if state["index"] >= len(state["packages"]):
+                manifest = {
+                    "format": "ADB-App-Manager APK backup",
+                    "version": 1,
+                    "device_serial": serial,
+                    "created_at": datetime.now().isoformat(),
+                    "backup_type": "APK files only; app-private data is not included",
+                    "backed_up_packages": state["backed_up"],
+                    "failed_packages": state["failed"],
+                    "packages": state["manifest"],
+                }
+                try:
+                    (root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+                    summary = (
+                        f"Backup finished.\n\nApps with APKs saved: {len(state['backed_up'])}\n"
+                        f"Apps failed or unavailable: {len(state['failed'])}\n\n"
+                        f"Backup folder:\n{root}\n\n"
+                        "Only APK files and a manifest were saved. App data and accounts are not included."
+                    )
+                    self.log_message(f"User-app APK backup finished: {len(state['backed_up'])} backed up, {len(state['failed'])} failed.")
+                    QMessageBox.information(self, "Backup complete", summary)
+                except OSError as exc:
+                    QMessageBox.warning(self, APP_NAME, f"Backup files were copied, but the manifest could not be saved:\n{exc}")
+                return
+            package = state["packages"][state["index"]]
+            state["index"] += 1
+            self.statusBar().showMessage(f"Backing up app {state['index']} of {len(state['packages'])}: {package}")
+            def paths_done(output: str) -> None:
+                remote_paths = [line.strip().removeprefix("package:") for line in output.splitlines() if line.strip().startswith("package:")]
+                if not remote_paths:
+                    state["failed"].append({"package": package, "reason": "Android returned no APK paths"})
+                    state["manifest"].append({"package": package, "status": "unavailable", "apk_files": []})
+                    backup_next_package()
+                    return
+                app_dir = root / package
+                try:
+                    app_dir.mkdir(parents=True, exist_ok=True)
+                except OSError as exc:
+                    state["failed"].append({"package": package, "reason": str(exc)})
+                    state["manifest"].append({"package": package, "status": "failed", "apk_files": []})
+                    backup_next_package()
+                    return
+                paths_state = {"index": 0, "ok": True, "files": []}
+                def pull_next() -> None:
+                    if paths_state["index"] >= len(remote_paths):
+                        if paths_state["ok"] and paths_state["files"]:
+                            state["backed_up"].append(package)
+                            state["manifest"].append({"package": package, "status": "backed_up", "apk_files": paths_state["files"]})
+                        else:
+                            state["failed"].append({"package": package, "reason": "One or more APK files could not be pulled"})
+                            state["manifest"].append({"package": package, "status": "partial_or_failed", "apk_files": paths_state["files"]})
+                        backup_next_package()
+                        return
+                    remote = remote_paths[paths_state["index"]]
+                    paths_state["index"] += 1
+                    filename = Path(remote).name or f"split-{paths_state['index']}.apk"
+                    local = app_dir / filename
+                    def pull_done(output: str) -> None:
+                        if local.is_file() and local.stat().st_size > 0:
+                            paths_state["files"].append(str(local.relative_to(root)))
+                            self.log_message(f"Backed up {package}/{filename}")
+                        else:
+                            paths_state["ok"] = False
+                            self.log_message(f"Could not back up {package}/{filename}: {output}")
+                        pull_next()
+                    self.run_async([adb, "-s", serial, "pull", remote, str(local)], pull_done, timeout=240,
+                                   on_error=lambda error: (setattr(paths_state, "ok", False), self.log_message(f"Could not pull {remote}: {error}"), pull_next()))
+                pull_next()
+            self.run_async([adb, "-s", serial, "shell", "pm", "path", package], paths_done, timeout=60,
+                           on_error=lambda error: (state["failed"].append({"package": package, "reason": error}),
+                                                   state["manifest"].append({"package": package, "status": "failed", "apk_files": []}),
+                                                   backup_next_package()))
+        self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages", "-3"], list_done, timeout=60)
+
+    def restore_user_app_backup(self) -> None:
+        """Select a prior backup folder and queue its APK files for installation."""
+        folder = QFileDialog.getExistingDirectory(self, "Select ADB App Manager backup folder")
+        if not folder:
+            return
+        root = Path(folder)
+        apk_paths = sorted(str(path) for path in root.rglob("*.apk") if path.is_file())
+        if not apk_paths:
+            QMessageBox.information(self, APP_NAME, "No APK files were found in that folder. Choose the backup folder containing the app subfolders.")
+            return
+        if not self.device_id:
+            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
+            return
+        if not self._confirmed(
+            "Restore app APK backup",
+            f"Queue {len(apk_paths)} APK file(s) from this backup for installation on {self.device_id}?\n\n"
+            "Split APKs must be installed as a matching set. If your backup contains split bundles, use Install split APK set for each app."
+        ):
+            return
+        self._open_apk_queue(split_mode=False, retry_paths=apk_paths)
 
     def shell_command(self) -> None:
         command, ok = QInputDialog.getText(self, "ADB shell", "Enter an Android shell command:")
