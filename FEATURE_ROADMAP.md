@@ -5,8 +5,9 @@ This is an independent project inspired by workflows found in [ADB AppControl](h
 ## Planned feature parity
 
 ### Package management
-- [ ] Multi-select and safe batch disable/enable/uninstall
+- [x] Visible multi-select checkboxes, Select all visible, Clear selection, and confirmation-protected batch disable/enable/uninstall
 - [x] Conservative exact-package debloat guidance with conditional risk labels and a review-only filter
+- [x] Searchable OEM Debloat Guide for common OxygenOS / ColorOS package IDs, functions, risk and dependency caveats
 - [ ] Device/OEM-aware recommendations and editable debloat presets
 - [ ] Restore packages uninstalled for the current Android user
 - [ ] App-data clearing with an explicit data-loss confirmation
