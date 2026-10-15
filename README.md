@@ -1,10 +1,10 @@
 # ADB App Manager
 
-A cross-platform Android package manager and debloating utility for Windows and Linux, powered by Android Debug Bridge (ADB).
+A cross-platform Android package manager and debloating utility for Windows and Linux, powered by Android Debug Bridge (ADB). Free and open source, with no Pro tier, subscription, or paid feature locks.
 
 ## Features
 
-- Detect ADB and connected Android devices
+- Detect ADB and connected Android devices; preserve the selected device during refresh and clearly report unauthorized/offline devices
 - Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
 - Conservative exact-package debloat guidance plus a searchable OEM Debloat Guide for OxygenOS/ColorOS, Xiaomi HyperOS/MIUI/POCO, Samsung One UI and Vivo/iQOO, showing risk levels, feature impacts and dependency caveats
