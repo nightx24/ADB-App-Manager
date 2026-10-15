@@ -1,6 +1,6 @@
-# OxygenOS / ColorOS OEM debloat guide
+# Android OEM debloat guide: OxygenOS/ColorOS, HyperOS and Samsung One UI
 
-This curated reference is built into ADB App Manager. It covers common OnePlus/OPlus/HeyTap/Google and selected Android package IDs. It is **not** a universal complete inventory and does not guarantee a package is safe on every device.
+This curated reference is built into ADB App Manager. It covers common OnePlus/OPlus/HeyTap/Google, Xiaomi HyperOS/MIUI and Samsung One UI package IDs. It is **not** a universal complete inventory and does not guarantee a package is safe on every device.
 
 ## Before you debloat
 
@@ -26,7 +26,7 @@ This curated reference is built into ADB App Manager. It covers common OnePlus/O
 | Package ID | App | Function | Risk | Features affected / dependencies |
 |---|---|---|---|---|
 | `com.oneplus.gamespace` | OnePlus Game Space | Game launcher, gaming tools and in-game overlay. | **Conditional — feature loss** | Loses Game Space overlay, game profiles and any gaming features integrated with this package. No universal package dependency guarantee; newer builds may use OPlus packages. |
-| `com.oplus.games` | OPlus Games platform | OEM gaming hub / game services on some builds. | **Conditional — feature loss** | May affect Game Space or gaming recommendations. Package name and dependencies vary by OxygenOS build. |
+| `com.oplus.games` | OPlus Games platform | OEM gaming hub / game services on some builds. | **Conditional — feature loss** | May affect Game Space or gaming recommendations. Package name and dependencies vary by OEM skin/build. |
 | `com.oneplus.brickmode` | Zen Mode / Brick Mode (variant) | Focus or digital-wellbeing mode on some older builds. | **Conditional — feature loss** | Removes the matching focus feature if this exact package is present. Other versions use different package names; verify before acting. |
 | `com.oneplus.zen` | Zen Mode (variant) | Focus / screen-time restriction feature on some builds. | **Conditional — feature loss** | Zen Mode may stop working. This package ID is not universal across OxygenOS versions. |
 | `net.oneplus.forums` | OnePlus Community (variant) | Brand community forum application. | **Low — optional app** | Removes the community app only if this exact package is installed; does not remove the phone's core forum/network framework. |
@@ -104,3 +104,58 @@ This curated reference is built into ADB App Manager. It covers common OnePlus/O
 ## Sources and limitations
 
 Community-maintained package lists are useful clues but are not official dependency specifications. Package IDs and behavior may differ by region, model and firmware. Confirm on the target phone before acting. This guide never removes packages automatically; selecting a guide row only selects a matching installed package in the App Library for manual review.
+
+
+## HyperOS and Samsung One UI additions
+
+| `com.miui.msa.global` | HyperOS: MSA (system ads) | Ad-related service on some Xiaomi builds. | **Review first — device-dependent** | Often associated with ads in Xiaomi apps, but exact behavior and dependencies vary by region/build. Prefer turning off recommendations in app settings first; test before disabling. |
+| `com.miui.analytics` | HyperOS: Xiaomi Analytics | Analytics/diagnostics component on some builds. | **Review first — device-dependent** | May affect diagnostics or usage reporting. Battery impact is not guaranteed; verify exact package label and test after changes. |
+| `com.miui.daemon` | HyperOS: MiuiDaemon | OEM background/diagnostic service on some builds. | **Review first — dependencies unclear** | Its role varies across MIUI/HyperOS versions. Do not assume it is only telemetry or dependency-free. |
+| `com.xiaomi.joyose` | HyperOS: Joyose | OEM service associated with device/game-related features on some builds. | **Review first — feature loss** | May affect gaming or OEM optimization behavior. Do not remove based on package name alone. |
+| `com.xiaomi.glance.mds` | HyperOS: Glance | Lock-screen content service on supported regions/devices. | **Conditional — feature loss** | May affect lock-screen content or Glance features if present. Regional availability and package role vary. |
+| `com.miui.yellowpage` | HyperOS: Yellow Pages | Caller/business lookup integration on some builds. | **Conditional — feature loss** | May remove business lookup or enhanced caller information. Test dialer and caller-ID behavior first. |
+| `com.miui.bugreport` | HyperOS: Bug report | OEM diagnostics/feedback reporting. | **Low — optional app** | May remove the ability to submit Xiaomi bug reports from this component; confirm it is not used by another diagnostics workflow. |
+| `com.miui.miservice` | HyperOS: Services & Feedback | Xiaomi service/feedback front end on some builds. | **Conditional — feature loss** | May remove service/support/feedback features. Exact dependencies vary. |
+| `com.xiaomi.mipicks` | HyperOS: GetApps | Xiaomi app marketplace. | **Low — optional app** | Only consider if you do not use GetApps or its app updates; keep a trusted app store available. |
+| `com.miui.hybrid` | HyperOS: Quick Apps | Mini-app framework on supported builds. | **Conditional — feature loss** | May break Quick Apps and shortcuts that rely on the framework. |
+| `com.miui.hybrid.accessory` | HyperOS: Quick Apps accessory | Supporting component for Quick Apps on some builds. | **Review first — dependencies unclear** | Treat as coupled to Quick Apps; do not remove independently unless you have tested the feature. |
+| `com.miui.cloudservice` | HyperOS: Xiaomi Cloud | Xiaomi account/cloud sync integration. | **Conditional — feature loss** | May affect Xiaomi Cloud sync, contacts or settings backup. Google backup is not a guaranteed replacement for every Xiaomi data type. |
+| `com.miui.cloudservice.sysapp` | HyperOS: Xiaomi Cloud system integration | System-facing Xiaomi Cloud integration. | **Review first — dependencies unclear** | May be used by other Xiaomi apps or sync workflows. Keep if using a Mi Account or Xiaomi Cloud. |
+| `com.miui.cloudbackup` | HyperOS: Cloud Backup | OEM backup integration on some builds. | **Review first — dependencies unclear** | May affect Xiaomi backup/restore flows. Confirm another backup works before changing. |
+| `com.xiaomi.midrop` | HyperOS: ShareMe | Peer-to-peer file transfer app. | **Low — optional app** | Removes ShareMe app functionality; use another transfer method if needed. |
+| `com.miui.weather2` | HyperOS: Mi Weather | Weather app and possible widgets. | **Low — optional app** | Remove only if you do not use its widgets, weather shortcuts or dependent home-screen features. |
+| `com.miui.notes` | HyperOS: Notes | Xiaomi notes app. | **Low — optional app** | Export or sync important notes first; verify the notes are accessible elsewhere. |
+| `com.miui.compass` | HyperOS: Compass | Compass utility. | **Low — optional app** | Removes the compass UI; the magnetometer hardware remains available to other apps. |
+| `com.miui.calculator` | HyperOS: Calculator | Calculator app. | **Low — optional app** | Keep another calculator installed and working before removing. |
+| `com.android.soundrecorder` | HyperOS: Sound Recorder | Voice recording app on some builds. | **Low — optional app** | Only remove if you do not use it; package may be shared by region-specific builds. |
+| `com.miui.screenrecorder` | HyperOS: Screen Recorder | Screen recording utility. | **Conditional — feature loss** | Removes or affects built-in screen recording. Check whether screenshots, game recording or control-center shortcuts depend on it. |
+| `com.miui.videoplayer` | HyperOS: Mi Video | Local video player and media portal. | **Conditional — feature loss** | Install and test another video player and file-intent handler before disabling. |
+| `com.miui.player` | HyperOS: Mi Music | Music player/media portal. | **Low — optional app** | Remove if unused; verify local audio files open in another player. |
+| `com.miui.gallery` | HyperOS: Gallery | Gallery and photo-management app. | **Review first — feature loss** | Camera thumbnail previews, editing, albums or Xiaomi-specific effects may depend on it. Test camera preview and photo editing before changing. |
+| `com.milink.service` | HyperOS: MiLink / UniPlay | Casting and wireless media integration on some builds. | **Conditional — feature loss** | May affect casting or connections to Xiaomi displays/speakers. |
+| `com.miui.extraphoto` | HyperOS: Gallery extras | Additional gallery/photo effects on some builds. | **Conditional — feature loss** | May remove special editing effects; exact feature set depends on the Gallery version. |
+| `com.miui.mishare.connectivity` | HyperOS: Mi Share connectivity | Nearby device sharing integration on some builds. | **Review first — dependencies unclear** | May affect Xiaomi/Oppo/Vivo/Realme cross-device sharing on supported builds. Verify the exact installed label and test sharing. |
+| `com.miui.cleanmaster` | HyperOS: Cleaner component | Cleaning feature associated with Xiaomi Security on some builds. | **Review first — dependencies unclear** | Do not assume this is isolated from Security app workflows. Prefer built-in settings to disable unwanted cleaning prompts. |
+| `com.miui.securitycenter` | HyperOS: Security Center — KEEP | Security, permissions and OEM device-management features. | **Critical — keep** | Do not disable or uninstall. May affect permissions, battery/device management, security and OEM features. Exact failure mode varies; treat as essential. |
+| `com.xiaomi.finddevice` | HyperOS: Find device — KEEP if used | Find-device and account security features. | **High — keep if enabled** | Disabling can weaken or break device-finding and account protection features. Keep if using Xiaomi account/device recovery; behavior varies by build. |
+| `com.mi.android.globalminusscreen` | HyperOS: App Vault / left screen | Launcher side-screen/content surface on some global builds. | **Conditional — feature loss** | May remove the left-side content pane. Prefer turning it off in Home Screen settings; package name varies. |
+| `com.android.updater` | HyperOS: System Updater — KEEP | System update client. | **Critical — keep** | Keep for official OTA updates and update notifications. |
+| `com.samsung.android.bixby.agent` | Samsung One UI: Bixby Voice | Bixby assistant app/service. | **Conditional — feature loss** | May remove Bixby features and integrations. Test side key, voice activation and routines before disabling. |
+| `com.samsung.android.bixby.wakeup` | Samsung One UI: Bixby Wakeup | Bixby voice wake-up component. | **Conditional — feature loss** | May disable Bixby wake-word activation; exact coupling varies by One UI version. |
+| `com.samsung.android.app.settings.bixby` | Samsung One UI: Bixby settings | Bixby configuration interface. | **Low — optional app** | May remove Bixby settings UI; do not assume this removes all Bixby components. |
+| `com.samsung.android.bixby.service` | Samsung One UI: Bixby service | Bixby integration service on some builds. | **Review first — dependencies unclear** | May affect Bixby-linked Samsung apps or system integrations. Review installed label and usage first. |
+| `com.samsung.android.app.routines` | Samsung One UI: Modes and Routines | Automation and context-based routines. | **Conditional — feature loss** | Removing loses custom modes/routines and automation. |
+| `com.samsung.android.arzone` | Samsung One UI: AR Zone | AR Emoji and augmented-reality app hub. | **Low — optional app** | Removes AR Zone features; verify you do not use AR tools or related camera features. |
+| `com.samsung.android.aremoji` | Samsung One UI: AR Emoji | Animated avatar features. | **Low — optional app** | Removes AR Emoji features if this exact package is present. |
+| `com.samsung.android.aremojieditor` | Samsung One UI: AR Emoji Editor | AR Emoji editing component. | **Conditional — feature loss** | May affect avatar editing or related assets. |
+| `com.samsung.android.app.camera.sticker.facear.preload` | Samsung One UI: Camera AR preload | Camera AR/sticker support assets on some builds. | **Review first — dependencies unclear** | Could affect camera stickers or AR effects. Test the stock camera before changing. |
+| `com.sec.android.app.sbrowser` | Samsung One UI: Samsung Internet | Samsung's browser app. | **Low — optional app** | Only remove after confirming another browser is installed and handles links, downloads and web sign-in. |
+| `com.samsung.android.scloud` | Samsung One UI: Samsung Cloud | Samsung account cloud sync/backup integration. | **Conditional — feature loss** | May affect Samsung Cloud sync, Gallery sync, notes or device backup. Google backup does not replace every Samsung service. |
+| `com.microsoft.icedee` | Samsung One UI: Link to Windows service (variant) | Windows linking integration on some builds. | **Review first — dependencies unclear** | May affect Phone Link integration. Package identity and function can vary; verify installed app label. |
+| `com.samsung.android.mdx` | Samsung One UI: Link to Windows / cross-device (variant) | Cross-device integration component on some builds. | **Review first — dependencies unclear** | May affect Windows linking or Samsung ecosystem features; confirm role on the exact phone. |
+| `com.samsung.android.app.spage` | Samsung One UI: Samsung Free / Daily | Launcher side-panel content service on some builds. | **Conditional — feature loss** | May remove the left-side media/news panel. Prefer disabling the panel in Home screen settings first. |
+| `com.sec.android.app.desktoplauncher` | Samsung One UI: DeX launcher | Desktop interface for Samsung DeX. | **Conditional — feature loss** | Keep if you use DeX or external-display desktop mode. |
+| `com.samsung.android.kidshome` | Samsung One UI: Samsung Kids | Child-friendly restricted environment. | **Low — optional app** | Remove only if you do not use Samsung Kids or family-controlled modes. |
+| `com.sec.android.app.launcher` | Samsung One UI Home — KEEP | Stock launcher and home-screen integration. | **Critical — keep** | Do not uninstall or disable. Third-party launchers do not guarantee replacement of every One UI Home/Recents integration. |
+| `com.samsung.android.securitylogagent` | Samsung One UI: Security Log Agent — KEEP | Samsung security logging component. | **High — keep** | Keep unless following authoritative, model-specific service guidance; security/Knox behavior may be affected. |
+| `com.samsung.android.biometrics.app.setting` | Samsung One UI: Biometrics settings — KEEP | Biometric enrollment and settings integration. | **Critical — keep** | Do not disable. May break fingerprint/face enrollment or related lock-screen security features. |
