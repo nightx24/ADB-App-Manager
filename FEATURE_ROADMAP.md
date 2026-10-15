@@ -41,6 +41,8 @@ This is an independent project inspired by workflows found in [ADB AppControl](h
 - [ ] Connection history and device profiles
 
 ### Usability and safety
+- [x] Show a live selected-package count and keep destructive Clear app data disabled unless exactly one app is selected
+- [x] Re-enable APK installation and AMBridge helper controls when a device is connected
 - [x] Preserve the selected authorized device during refresh and report when no authorized device is available
 - [ ] Dark/light theme and adjustable font/list sizing
 - [ ] App metadata lookup links to independent public sources
