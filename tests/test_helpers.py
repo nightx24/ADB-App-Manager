@@ -1,6 +1,29 @@
 import unittest
 
-from main import DEBLOAT_RECOMMENDATIONS, OEM_DEBLOAT_GUIDE, Package, parse_package_names
+from main import DEBLOAT_RECOMMENDATIONS, OEM_DEBLOAT_GUIDE, Package, parse_adb_devices, parse_package_names
+
+
+class ParseAdbDevicesTests(unittest.TestCase):
+    def test_parses_authorized_unauthorized_and_offline_devices(self):
+        output = (
+            "List of devices attached\n"
+            "ABC123 device product:foo model:Pixel_8\n"
+            "XYZ456 unauthorized usb:1-2\n"
+            "OLD789 offline\n"
+            "\n"
+        )
+        self.assertEqual(
+            parse_adb_devices(output),
+            [
+                ("ABC123", "device", "product:foo model:Pixel_8"),
+                ("XYZ456", "unauthorized", "usb:1-2"),
+                ("OLD789", "offline", ""),
+            ],
+        )
+
+    def test_ignores_header_noise_and_empty_output(self):
+        self.assertEqual(parse_adb_devices("List of devices attached\n* daemon started successfully *\n"), [])
+        self.assertEqual(parse_adb_devices(""), [])
 
 
 class ParsePackageNamesTests(unittest.TestCase):
