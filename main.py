@@ -179,7 +179,7 @@ OEM_DEBLOAT_GUIDE: list[dict[str, str]] = [
 ]
 
 for _guide_entry in OEM_DEBLOAT_GUIDE:
-    if not _guide_entry["risk"].startswith(("High", "Critical")):
+    if not _guide_entry["risk"].startswith(("High", "Critical", "Review first")):
         DEBLOAT_RECOMMENDATIONS.setdefault(
             _guide_entry["package"],
             (_guide_entry["risk"], _guide_entry["impact"]),
