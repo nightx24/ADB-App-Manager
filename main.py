@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QMessageBox, QPushButton, QStatusBar, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView, QInputDialog,
     QStackedWidget, QFrame, QDialog, QCheckBox, QListWidget, QListWidgetItem, QProgressBar,
+    QGridLayout, QScrollArea,
 )
 
 APP_NAME = "ADB App Manager"
@@ -436,8 +437,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(APP_NAME)
-        self.resize(1080, 720)
-        self.setMinimumSize(760, 520)
+        self.resize(1240, 820)
+        self.setMinimumSize(900, 600)
         self.packages: list[Package] = []
         self.third_party_names: set[str] = set()
         self._ambridge_metadata: dict[str, dict] = {}
@@ -686,36 +687,45 @@ class MainWindow(QMainWindow):
         tools_page_layout.addWidget(tools_title)
         tools_page_layout.addWidget(tools_subtitle)
 
-        tools_grid = QHBoxLayout()
-        tools_grid.setSpacing(12)
-        for group_title, descriptions, entries in [
+        # Scrollable two-column cards keep the tools readable on laptop screens.
+        tools_scroll = QScrollArea()
+        tools_scroll.setObjectName("toolsScroll")
+        tools_scroll.setWidgetResizable(True)
+        tools_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        tools_container = QWidget()
+        tools_grid = QGridLayout(tools_container)
+        tools_grid.setContentsMargins(2, 2, 8, 8)
+        tools_grid.setHorizontalSpacing(14)
+        tools_grid.setVerticalSpacing(14)
+        tools_grid.setColumnStretch(0, 1)
+        tools_grid.setColumnStretch(1, 1)
+        tool_groups = [
             ("ADB console", "Run a command or transfer files.", [
                 ("Shell command", self.shell_command), ("Upload files", self.upload_files)
             ]),
             ("APK installer", "Install Android apps from APK files, including split APK bundles.", [
-                ("Install APK(s)", self.install_apks),
-                ("Install split APK set", self.install_split_apks),
+                ("Install APK(s)", self.install_apks), ("Install split APK set", self.install_split_apks),
             ]),
             ("App backup & restore", "Back up user-installed app APK files and restore them later.", [
-                ("Back up user apps", self.backup_user_apps),
-                ("Restore APK backup", self.restore_user_app_backup),
+                ("Back up user apps", self.backup_user_apps), ("Restore APK backup", self.restore_user_app_backup),
             ]),
             ("Connection", "Configure older TCP/IP debugging.", [
                 ("Enable TCP/IP (USB)", self.enable_legacy_tcpip)
             ]),
             ("Device maintenance", "Restart Android into system, recovery, bootloader, or supported EDL mode.", [
-                ("ADB reboot options", self.reboot_device),
-                ("Fastboot reboot options", self.fastboot_reboot_device),
+                ("ADB reboot options", self.reboot_device), ("Fastboot reboot options", self.fastboot_reboot_device),
             ]),
-            ("Package presets & debloat guide", "Save or restore selections, or review OxygenOS/ColorOS, HyperOS and Samsung One UI package functions, risks and dependency caveats.", [
+            ("Package presets & debloat guide", "Save or restore selections, or review OEM package functions, risks and dependency caveats.", [
                 ("Save preset", self.save_preset), ("Load preset", self.load_preset),
                 ("Open OEM debloat guide", self.show_oem_debloat_guide)
             ]),
-        ]:
+        ]
+        for index, (group_title, descriptions, entries) in enumerate(tool_groups):
             card = QFrame()
             card.setObjectName("toolCard")
+            card.setMinimumHeight(180)
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(16, 16, 16, 16)
+            card_layout.setContentsMargins(18, 17, 18, 17)
             card_layout.setSpacing(10)
             title_label = QLabel(group_title)
             title_label.setObjectName("sectionTitle")
@@ -726,12 +736,13 @@ class MainWindow(QMainWindow):
             card_layout.addWidget(desc_label)
             for label, callback in entries:
                 button = QPushButton(label)
+                button.setMinimumHeight(36)
                 button.clicked.connect(callback)
                 card_layout.addWidget(button)
             card_layout.addStretch(1)
-            tools_grid.addWidget(card)
-        tools_page_layout.addLayout(tools_grid)
-        tools_page_layout.addStretch(1)
+            tools_grid.addWidget(card, index // 2, index % 2)
+        tools_scroll.setWidget(tools_container)
+        tools_page_layout.addWidget(tools_scroll, 1)
         self.page_stack.addWidget(self.tools_page)
 
         content_layout.addWidget(self.page_stack, 1)
@@ -754,7 +765,8 @@ class MainWindow(QMainWindow):
         log_layout.addLayout(log_header)
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setMaximumHeight(86)
+        self.log.setMinimumHeight(76)
+        self.log.setMaximumHeight(112)
         self.log.setPlaceholderText("Activity log — device actions and ADB responses appear here.")
         log_layout.addWidget(self.log)
         shell.addWidget(log_panel)
@@ -784,6 +796,7 @@ class MainWindow(QMainWindow):
             QMenu::item:selected { background: #263b60; }
             QFrame#topBar { background: #0e1728; border-bottom: 1px solid #243149; }
             QFrame#sidebar { background: #0d1525; border-right: 1px solid #243149; }
+            QScrollArea#toolsScroll, QScrollArea#toolsScroll > QWidget > QWidget { background: transparent; border: none; }
             QFrame#logPanel { background: #0e1728; border-top: 1px solid #243149; }
             QLabel { background: transparent; }
             QLabel#title { font-size: 25px; font-weight: 750; color: #f8fafc; }
@@ -795,6 +808,7 @@ class MainWindow(QMainWindow):
             QLabel#sectionTitle { color: #f1f5f9; font-size: 15px; font-weight: 700; }
             QLabel#infoNote { color: #9bb8e6; background: #12213a; border: 1px solid #263f66; border-radius: 9px; padding: 13px; }
             QFrame#statCard, QFrame#panel, QFrame#toolCard { background: #111b2d; border: 1px solid #263650; border-radius: 12px; }
+            QFrame#statCard:hover, QFrame#toolCard:hover { border-color: #3a5277; }
             QLineEdit, QComboBox, QTextEdit {
                 background: #101a2b; color: #e7ecf5; border: 1px solid #293750;
                 border-radius: 9px; padding: 9px 11px; selection-background-color: #315fbd;
@@ -820,7 +834,8 @@ class MainWindow(QMainWindow):
             QPushButton:focus { border: 1px solid #60a5fa; }
             QPushButton:disabled { color: #64748b; background: #111827; border-color: #202b3d; }
             QPushButton#primaryButton { background: #2563eb; color: #ffffff; border: 1px solid #3b82f6; }
-            QPushButton#primaryButton:hover { background: #3478f6; }
+            QPushButton#primaryButton:hover { background: #3478f6; border-color: #60a5fa; }
+            QPushButton#primaryButton:pressed { background: #1d4ed8; }
             QPushButton#navButton { text-align: left; padding: 12px 11px; background: transparent; border: 1px solid transparent; color: #9cabc2; }
             QPushButton#navButton:hover { background: #14213a; color: #e2e8f0; }
             QPushButton#navButton:checked { background: #1b3152; border: 1px solid #2c4e7d; color: #dbeafe; }
