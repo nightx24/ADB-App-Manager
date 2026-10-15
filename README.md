@@ -7,7 +7,8 @@ A cross-platform Android package manager and debloating utility for Windows and 
 - Detect ADB and connected Android devices
 - Wireless ADB connection and Android 11+ Wireless Debugging pairing-code workflow
 - Browse installed packages, with search and third-party/system filters
-- Conservative debloat guidance for a small set of exact package IDs, with conditional risk notes and a dedicated review filter
+- Conservative exact-package debloat guidance plus a searchable OxygenOS / ColorOS OEM Debloat Guide showing functions, risk levels, known feature impacts and uncertain dependencies
+- Visible package checkboxes, Select all visible, Clear selection, and checked multi-select batch operations
 - Uninstall an app for the current Android user (does not remove the APK from the system partition)
 - Disable and re-enable packages
 - Export the package inventory to CSV
@@ -86,6 +87,10 @@ Keep the phone awake and unlocked during the first connection. The companion nee
 ## Safety notes
 
 Package operations can disable important Android features. Review the package name before applying an action. The app intentionally does not provide one-click bulk debloating or automatically remove packages. “Uninstall for user” uses `pm uninstall --user 0`, which generally removes the package for the primary user while leaving system image files intact. Availability varies by Android version and device vendor. Reinstall/enable actions may not work for every package.
+
+## OEM debloat guide
+
+Open **Device tools → OEM Debloat Guide** to search common OnePlus/OPlus/HeyTap/Google package IDs and review their purpose, risk, and known or uncertain feature dependencies. It is a curated reference, not a universal complete list: package names and dependencies vary by model, region, Android version, and OxygenOS build. The guide never removes anything automatically; it can only select matching installed packages in the App library for review. See [OXYGENOS_DEBLOAT_GUIDE.md](OXYGENOS_DEBLOAT_GUIDE.md) for the full reference and recovery notes.
 
 ## Debloat recommendation safety
 
