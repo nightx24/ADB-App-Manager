@@ -101,3 +101,6 @@ The project is independently developed and takes inspiration from common Android
 ## License
 
 MIT License. ADB App Manager is an independent project inspired by ADB AppControl, Universal Android Debloater, and Universal Android Debloater Next Generation. It is not affiliated with or endorsed by those projects or their maintainers.
+
+
+The unified debloat reference includes supplemental ColorOS/realme UI package risk notes.
