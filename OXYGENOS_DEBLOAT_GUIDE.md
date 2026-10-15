@@ -1,25 +1,25 @@
 # OxygenOS / ColorOS OEM debloat guide
 
-This guide is built into ADB App Manager's **OEM Debloat Guide** window. It is a curated reference for common OnePlus/OPlus/HeyTap/Google package IDs, not a universal complete inventory and not a guarantee that any package is safe on every device.
+This curated reference is built into ADB App Manager. It covers common OnePlus/OPlus/HeyTap/Google and selected Android package IDs. It is **not** a universal complete inventory and does not guarantee a package is safe on every device.
 
 ## Before you debloat
 
-1. Load the package list from your connected phone and check that the exact package ID is present.
-2. Check the model, region, Android version, OxygenOS version and app label. The same feature may use different package IDs on different releases.
-3. Prefer **Disable** or uninstall-for-user only after reviewing the impact. Neither action is guaranteed to be reversible for every OEM package.
-4. Make a backup. APK backup does not include private app data, login sessions or settings.
-5. Change one package at a time, then test calls, SMS, mobile data, Wi-Fi, Bluetooth, camera, notifications, gestures, launcher, updates and the features you use.
-6. Keep another keyboard installed and tested before changing the keyboard package. Keep the stock launcher and core system providers.
-7. If a system package causes trouble, try `adb shell cmd package install-existing PACKAGE_ID` for a package uninstalled only for the current user, or `adb shell pm enable --user 0 PACKAGE_ID` for a disabled package. These commands do not guarantee recovery on every build.
+1. Load the package list from your connected phone and confirm the exact package ID and displayed app label are present.
+2. Check the phone model, region, Android version and OxygenOS/ColorOS build. The same feature may use different package IDs on different releases.
+3. Review the feature impact. Prefer disabling only optional apps, and change one package at a time.
+4. Back up important data. APK backups do not include app-private data, login sessions or settings.
+5. After each change, test calls, SMS, mobile data, Wi-Fi, Bluetooth, camera, notifications, lock screen, gestures, launcher, app installation and system updates.
+6. Keep the stock launcher, System UI, Settings, telephony components, permission controller, Google Play services if you use Google apps, and at least one working keyboard and WebView provider.
+7. Recovery may be possible with `adb shell cmd package install-existing PACKAGE_ID` for a package uninstalled only for user 0, or `adb shell pm enable --user 0 PACKAGE_ID` for a disabled package. These commands are not guaranteed to recover every OEM/system change.
 
 ## Risk labels
 
-- **Low — optional app:** generally a user-facing app; removing it usually loses that app only, but verify your usage.
-- **Conditional — feature loss:** expected to remove a specific feature; keep it if you use that feature.
-- **Review first:** the exact role or dependencies vary by OS build. Do not treat these as safe/isolated.
-- **High / Critical — keep:** shown as a warning, not a removal recommendation.
+- **Low — optional app:** generally a user-facing app; removal usually removes that app's own UI or feature, but verify your use.
+- **Conditional — feature loss:** expect to lose a specific feature; keep it if you use that feature.
+- **Review first:** role or dependencies are uncertain or vary by OS build. Do not treat it as safe to remove.
+- **High / Critical — keep:** warning entries, not debloat recommendations.
 
-**Dependency limitation:** Android package names alone do not expose all runtime or vendor dependencies. ADB App Manager cannot prove that a package has no dependencies just by seeing it in the installed package list. The “features affected / dependencies” column records known or plausible impacts and explicitly marks uncertain cases.
+**Dependency limitation:** A package name and the installed-package list cannot prove the absence of runtime, privileged-permission, shared-library or vendor dependencies. This guide describes known or plausible impacts and marks uncertain roles. It does not claim to discover every dependency automatically.
 
 ## Curated package reference
 
@@ -72,17 +72,35 @@ This guide is built into ADB App Manager's **OEM Debloat Guide** window. It is a
 | `com.google.android.inputmethod.latin` | Gboard — KEEP unless replacement tested | Google keyboard / input method. | **High — keep a replacement first** | Removing the only enabled keyboard can prevent text entry during setup or recovery. Install and test another keyboard first. |
 | `com.oplus.launcher` | OPlus launcher — KEEP | OEM home screen and launcher integration. | **High — keep** | May break home screen, gestures, widgets or recent-task integrations. Do not remove based on third-party launcher availability alone. |
 | `com.oneplus.launcher` | OnePlus launcher — KEEP | OEM home screen and launcher integration on some builds. | **High — keep** | May break home screen, gestures, widgets or recents integration. Keep even if a third-party launcher is installed. |
+| `com.oppo.launcher` | OPPO Launcher (variant) — KEEP | OEM home screen and launcher integration on some ColorOS builds. | **High — keep** | Removing the active home launcher can leave no usable home screen and may disrupt gestures or recents. Package IDs differ by device; keep the active OEM launcher. |
+| `com.oplus.uiengine` | OPlus UI Engine (variant) — KEEP / REVIEW | OEM UI or theme-related service on some builds; exact role is version-dependent. | **Review first — dependencies unclear** | The exact dependency role is not consistently documented across builds. Do not assume it is responsible for all screen rendering, but do not debloat it without device-specific evidence. |
+| `com.oplus.deepthinker` | OPlus DeepThinker — KEEP / REVIEW | OEM context-aware intelligence, app prediction or smart-service components on some builds. | **Review first — dependencies unclear** | May support OEM smart features or background recommendations. Claims that it universally controls Android memory allocation or causes bootloops if removed are not established for every build. |
+| `com.oplus.strategy` | OPlus Strategy Service (variant) | OEM device strategy or configuration service on some builds. | **Review first — dependencies unclear** | Its exact responsibilities and dependencies vary. Do not assume it directly controls thermal safety or CPU frequency without build-specific evidence. |
+| `com.oplus.performance` | OPlus Performance Service (variant) | OEM performance-related service on some builds. | **Review first — dependencies unclear** | May be linked to OEM performance modes. Thermal management and CPU scheduling also involve Android kernel/vendor components; removing this package is not proven to cause a specific refresh-rate or overheating outcome on every phone. |
+| `com.android.phone` | Phone Services — KEEP | Android telephony framework service for cellular calling and related functions. | **Critical — do not remove** | Can break cellular calling, SIM registration or other telephony functions. Keep. |
+| `com.oplus.wireless` | OPlus Wireless Service (variant) | OEM wireless/connectivity-related service on some builds. | **Review first — dependencies unclear** | Exact role varies and the name alone does not prove it controls all Wi-Fi or Bluetooth drivers. Do not remove without confirming the package purpose on the device. |
+| `com.android.keyguard` | Keyguard (variant) — KEEP | Lock-screen / keyguard components on builds that expose this package. | **Critical — do not remove** | Lock-screen implementation is integrated with System UI and other framework services; removing a keyguard-related package can compromise lock-screen access. Package may be absent or represented differently on modern Android. |
+| `com.oplus.biometric.fingerprint` | OPlus Fingerprint Service (variant) | Possible OEM fingerprint-related service on some builds. | **Review first — dependencies unclear** | If this exact package handles a device's fingerprint integration, disabling it can break fingerprint unlock. Verify the label and package on the phone; sensor HAL/vendor services are also involved. |
+| `com.google.android.gsf` | Google Services Framework — KEEP | Google service registration and framework integration used by some Google components. | **High — do not remove** | Removing it can disrupt Google account/device registration or services on many builds. Keep unless you intentionally run a configuration without Google services and understand the consequences. |
+| `com.google.android.packageinstaller` | Google Package Installer (variant) — KEEP | Package installation UI/component on some Android builds. | **High — do not remove** | May disrupt APK installation or confirmation flows. Modern Android may use a different package or installer arrangement; keep the active system installer. |
+| `com.google.android.permissioncontroller` | Permission Controller — KEEP | Android runtime permission and privacy-control UI/services. | **Critical — do not remove** | Can break permission management and app permission prompts. Keep. |
+| `com.google.android.webview` | Android System WebView — KEEP a working provider | Embedded web-content rendering used by many apps. | **High — keep a working provider** | Do not remove or disable the only enabled WebView provider. Some devices use a different provider or Chrome implementation; check Developer options / WebView provider before changing it. |
+| `com.google.android.tts` | Speech Services by Google (variant) | Text-to-speech voice engine on many builds. | **Conditional — feature loss** | May remove Google TTS voices and affect apps or accessibility features that rely on this engine. Keep another configured speech engine if you need spoken feedback. |
+| `com.android.chrome` | Google Chrome | Web browser and, on some configurations, a WebView provider. | **Conditional — feature loss** | Usually optional if another browser is installed, but check whether Chrome is the active WebView provider before disabling it. |
+| `com.google.android.apps.maps` | Google Maps | Maps, navigation and location-based app UI. | **Low — optional app** | Removes the Maps app and navigation UI. Other apps may still use Android location APIs, but Maps-specific intents or integrations may no longer open. |
+| `com.google.android.apps.walletnfcrel` | Google Wallet | Payment cards, passes and supported tap-to-pay workflows. | **Low — optional app** | Removes Wallet UI and its payment/pass features. If you use tap-to-pay or stored passes, keep it; payment capability also depends on device, region and bank support. |
+| `com.google.android.apps.fitness` | Google Fit (variant) | Fitness activity tracking and health data UI. | **Low — optional app** | Removes Google Fit app features. Package ID may vary, and connected fitness apps may use separate services. |
+| `com.google.android.apps.podcasts` | Google Podcasts (legacy) | Legacy Google Podcasts app. | **Low — optional app** | Optional if present. Google Podcasts has been discontinued in many markets, so this package may not exist on current devices. |
+| `com.google.android.as` | Android System Intelligence — KEEP / REVIEW | On-device intelligence features such as smart text selection and other system suggestions; feature set varies by Android release. | **Review first — dependencies unclear** | Disabling can remove or degrade selected smart system features. It is not a universal battery-drain culprit; do not assume every listed feature is implemented by this package on every build. |
 
-## What this list does not mean
+## Important corrections to common debloat claims
 
-- “Not listed” does not mean safe or unsafe.
-- “Low risk” does not guarantee compatibility with every model, regional firmware or OTA update.
-- Removing AI, analytics or push services is not guaranteed to improve battery life or performance.
-- Some entries are variants/aliases; only act on the exact package ID installed on the connected device.
-- Do not remove Android System UI, Settings, telephony providers, Google Play services, your only keyboard, or the OEM launcher.
+- Disabling a critical package can cause severe problems, but an immediate bootloop or factory reset is not guaranteed in every case.
+- `com.oplus.deepthinker`, `com.oplus.strategy`, `com.oplus.performance`, `com.oplus.uiengine` and `com.oplus.wireless` are treated as **review-first** where their exact role is not established for every build. Do not assume package names alone prove they directly control memory allocation, thermal safety, CPU frequency or all connectivity drivers.
+- Keep a working System UI, launcher, Settings, telephony, permission controller, package installer, WebView provider and keyboard. Do not remove Google Play services if your apps rely on Google APIs.
+- Consumer apps such as YouTube Music, Gmail, Meet, Maps, Wallet or Fit are generally optional apps, but removing them can still remove their own features or integrations. “Optional” does not mean “zero dependencies on every firmware.”
+- Removing analytics or AI packages is not guaranteed to improve battery life or performance.
 
 ## Sources and limitations
 
-This reference was cross-checked against public community debloat repositories, including [Debloater Enhanced](https://github.com/OshekharO/Debloater-Enhanced), [OnePlus/ColorOS debloat scripts](https://github.com/aiy365/oneplus-coloros-debloat), and [community discussions on OxygenOS packages](https://www.reddit.com/r/oneplus/). These are community-maintained lists, not official OnePlus dependency documentation; some entries may be inaccurate or outdated. Confirm behavior on your own device before changing anything.
-
-The app never automatically removes packages from this guide. Selecting entries only checks them in the App library so you can review the actual installed package before choosing an action.
+Community-maintained package lists are useful clues but are not official dependency specifications. Package IDs and behavior may differ by region, model and firmware. Confirm on the target phone before acting. This guide never removes packages automatically; selecting a guide row only selects a matching installed package in the App Library for manual review.
