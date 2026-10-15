@@ -1,6 +1,6 @@
 # Android OEM debloat guide: OxygenOS/ColorOS, HyperOS and Samsung One UI
 
-This curated reference is built into ADB App Manager. It covers common OnePlus/OPlus/HeyTap/Google, Xiaomi HyperOS/MIUI and Samsung One UI package IDs. It is **not** a universal complete inventory and does not guarantee a package is safe on every device.
+This curated reference is built into ADB App Manager. It covers common OnePlus/OPlus/HeyTap/Google, Xiaomi HyperOS/MIUI, Samsung One UI and Vivo/iQOO Funtouch OS/OriginOS package IDs. It is **not** a universal complete inventory and does not guarantee a package is safe on every device.
 
 ## Before you debloat
 
@@ -159,3 +159,56 @@ Community-maintained package lists are useful clues but are not official depende
 | `com.sec.android.app.launcher` | Samsung One UI Home — KEEP | Stock launcher and home-screen integration. | **Critical — keep** | Do not uninstall or disable. Third-party launchers do not guarantee replacement of every One UI Home/Recents integration. |
 | `com.samsung.android.securitylogagent` | Samsung One UI: Security Log Agent — KEEP | Samsung security logging component. | **High — keep** | Keep unless following authoritative, model-specific service guidance; security/Knox behavior may be affected. |
 | `com.samsung.android.biometrics.app.setting` | Samsung One UI: Biometrics settings — KEEP | Biometric enrollment and settings integration. | **Critical — keep** | Do not disable. May break fingerprint/face enrollment or related lock-screen security features. |
+
+
+## Vivo / iQOO (Funtouch OS / OriginOS) package reference
+
+| Package ID | App / service | Function | Risk | Features affected / dependencies |
+|---|---|---|---|---|
+| `com.vivo.appstore` | Vivo/iQOO: V-Appstore | Manufacturer app marketplace and update source. | **Low — optional app** | Consider only if you use Google Play or another trusted store and do not rely on V-Appstore for OEM app updates. |
+| `com.vivo.browser` | Vivo/iQOO: Browser | Stock browser app on some builds. | **Low — optional app** | Install and test another browser first; confirm links, downloads and sign-in flows work. |
+| `com.ibimuyu.lockscreen` | Vivo/iQOO: Glance lock screen (variant) | Lock-screen content or wallpaper service on some builds. | **Review first — device-dependent** | Package role and availability vary. Prefer disabling lock-screen content in settings before disabling this package. |
+| `com.vivo.website` | Vivo/iQOO: Official website app | OEM website/support portal on some builds. | **Review first — verify package** | Verify the installed label and package on your model; package name alone does not establish it is harmless. |
+| `com.vivo.easyshare` | Vivo/iQOO: EasyShare | Peer-to-peer transfer and device migration app. | **Low — optional app** | Removes EasyShare/migration features. Test your alternative transfer method before removing. |
+| `com.vivo.gamecube` | Vivo/iQOO: Ultra Game Mode / Game Cube (variant) | Gaming overlay or game tools on supported builds. | **Conditional — feature loss** | May remove in-game sidebar, game tools or performance controls. Keep if you use gaming features. |
+| `com.vivo.assistant` | Vivo/iQOO: Jovi assistant (variant) | Assistant and contextual features on some builds. | **Review first — device-dependent** | Jovi features vary by device and OS version. Disabling may affect smart scenes, assistant entry points or related features. |
+| `com.android.bbklog` | Vivo/iQOO: BBK log agent | OEM logging/diagnostics package on some builds. | **Review first — dependencies unclear** | Do not assume it only collects telemetry or that disabling it improves battery life; verify on the exact build. |
+| `com.vivo.vtouch` | Vivo/iQOO: V-Touch (variant) | Touch/gesture feature integration on some builds. | **Review first — feature loss** | May affect OEM gesture or shortcut behavior. Test navigation gestures and side-swipe shortcuts before changing. |
+| `com.bbk.account` | Vivo/iQOO: BBK account | Manufacturer account integration. | **Conditional — feature loss** | May affect Vivo/iQOO account sign-in, cloud sync, themes, or device-finding features. Keep if using the manufacturer account. |
+| `com.bbk.cloud` | Vivo/iQOO: BBK cloud | Manufacturer cloud sync and backup integration. | **Conditional — feature loss** | May affect cloud backups, gallery/notes sync or restore. Confirm exports and alternative backups before changing. |
+| `com.vivo.gallery` | Vivo/iQOO: Gallery | Stock photo gallery and media integration. | **Review first — feature loss** | Camera thumbnail previews, editing or album features may depend on it. Test camera previews and editing before disabling. |
+| `com.android.calculator2` | Vivo/iQOO: Calculator (package variant) | Calculator app on some builds. | **Low — optional app** | Package may belong to a different calculator app on some devices. Confirm the installed app label before acting. |
+| `com.bbk.theme` | Vivo/iQOO: Themes | Themes, fonts, wallpapers or icon-store integration. | **Conditional — feature loss** | May affect online themes, fonts, lock-screen assets or icon packs. Keep if you use these features. |
+| `com.vivo.weather` | Vivo/iQOO: Weather | Stock weather app and widgets. | **Low — optional app** | Remove only if you do not use its widgets or OEM weather shortcuts. |
+| `com.vivo.email` | Vivo/iQOO: Email | Stock email client on some builds. | **Low — optional app** | Confirm Gmail or another email app is installed and your accounts/messages are available before removing. |
+| `com.iqoo.secure` | Vivo/iQOO: iManager / security (variant) — KEEP | OEM security/device-management component on some builds. | **Critical — keep** | Do not disable based on generic debloat lists. Exact role varies by model; could affect device-management or security features. |
+| `com.vivo.secure` | Vivo/iQOO: iManager / security (variant) — KEEP | OEM security/device-management component on some builds. | **Critical — keep** | Do not disable based on generic debloat lists. Exact role varies by model; could affect device-management or security features. |
+| `com.bbk.launcher2` | Vivo/iQOO: Funtouch launcher (variant) — KEEP | Stock launcher on some Vivo/iQOO builds. | **Critical — keep** | Do not disable until a verified recovery path exists; launcher and system UI integrations can vary by version. |
+| `com.iqoo.engineermode` | Vivo/iQOO: Engineer mode (variant) — KEEP | OEM engineering/testing component on some builds. | **High — keep** | Do not remove using generic advice; package role is device-specific and may be required for service/testing functions. |
+| `com.vivo.engineermode` | Vivo/iQOO: Engineer mode (variant) — KEEP | OEM engineering/testing component on some builds. | **High — keep** | Do not remove using generic advice; package role is device-specific and may be required for service/testing functions. |
+
+
+## POCO / Xiaomi package reference
+
+| Package ID | App / service | Function | Risk | Features affected / dependencies |
+|---|---|---|---|---|
+| `com.miui.msa.global` | POCO/MIUI/HyperOS: MSA ads service | Ad-related service on some Xiaomi builds. | **Review first — device-dependent** | Same package already listed for Xiaomi. Exact behavior and dependencies vary; turn off recommendations in individual apps first. |
+| `com.miui.analytics` | POCO/MIUI/HyperOS: Analytics | Analytics/diagnostics component on some builds. | **Review first — device-dependent** | Same package already listed for Xiaomi. Battery improvement is not guaranteed; verify the exact installed app label. |
+| `com.miui.daemon` | POCO/MIUI/HyperOS: MiuiDaemon | OEM background/diagnostic service. | **Review first — dependencies unclear** | Same package already listed for Xiaomi. Do not assume it is only telemetry or dependency-free. |
+| `com.xiaomi.joyose` | POCO/MIUI/HyperOS: Joyose | OEM service associated with gaming/device features on some builds. | **Review first — feature loss** | Same package already listed for Xiaomi. May affect OEM gaming or optimization behavior. |
+| `com.xiaomi.glance.mds` | POCO/MIUI/HyperOS: Glance lock screen (variant) | Lock-screen content service on supported devices/regions. | **Review first — device-dependent** | Package may be absent or differ by region. Prefer turning off lock-screen content in settings. |
+| `com.miui.yellowpage` | POCO/MIUI/HyperOS: Yellow Pages | Business/caller lookup integration on some builds. | **Conditional — feature loss** | May affect enhanced caller information. Test the dialer and caller-ID behavior. |
+| `com.xiaomi.mipicks` | POCO/MIUI/HyperOS: GetApps | Manufacturer app marketplace. | **Low — optional app** | Same package already listed for Xiaomi. Keep a trusted app store available and consider app-update dependencies. |
+| `com.miui.hybrid` | POCO/MIUI/HyperOS: Quick Apps | Mini-app framework on supported builds. | **Conditional — feature loss** | Same package already listed for Xiaomi. May break Quick Apps or related shortcuts. |
+| `com.miui.hybrid.accessory` | POCO/MIUI/HyperOS: Quick Apps accessory | Supporting Quick Apps component. | **Review first — dependencies unclear** | Same package already listed for Xiaomi. Treat as coupled to Quick Apps. |
+| `com.miui.cloudservice` | POCO/MIUI/HyperOS: Xiaomi Cloud | Manufacturer cloud integration. | **Conditional — feature loss** | Same package already listed for Xiaomi. Google backup does not replace every Xiaomi cloud feature. |
+| `com.xiaomi.midrop` | POCO/MIUI/HyperOS: ShareMe | Peer-to-peer file transfer app. | **Low — optional app** | Same package already listed for Xiaomi. Remove only if you do not use ShareMe. |
+| `com.miui.weather2` | POCO/MIUI/HyperOS: Weather | Stock weather app/widgets. | **Low — optional app** | Same package already listed for Xiaomi. Check home-screen widgets and shortcuts first. |
+| `com.miui.videoplayer` | POCO/MIUI/HyperOS: Mi Video | Local video player/media portal. | **Conditional — feature loss** | Same package already listed for Xiaomi. Test another player and generic video file intents first. |
+| `com.miui.player` | POCO/MIUI/HyperOS: Mi Music | Stock music player. | **Low — optional app** | Same package already listed for Xiaomi. Verify local audio files open in another player. |
+| `com.miui.gallery` | POCO/MIUI/HyperOS: Gallery — review | Gallery and photo-management app. | **Review first — feature loss** | Same package already listed for Xiaomi. Camera previews, editing and albums may depend on it; test before disabling. |
+| `com.milink.service` | POCO/MIUI/HyperOS: MiLink / UniPlay | Casting and wireless media integration. | **Conditional — feature loss** | Same package already listed for Xiaomi. May affect screen/media casting. |
+| `com.miui.cleanmaster` | POCO/MIUI/HyperOS: Cleaner component | Storage cleaning integration on some builds. | **Review first — dependencies unclear** | Same package already listed for Xiaomi. Do not assume it is isolated from Security app workflows. |
+| `com.miui.securitycenter` | POCO/MIUI/HyperOS: Security Center — KEEP | OEM security, permissions and device-management features. | **Critical — keep** | Same package already listed for Xiaomi. Do not disable or uninstall. |
+| `com.mi.android.globalminusscreen` | POCO/MIUI/HyperOS: App Vault / left screen | Launcher side-screen integration on some global builds. | **Conditional — feature loss** | Same package already listed for Xiaomi. Prefer disabling the pane in Home Screen settings. |
+| `com.miui.home` | POCO/MIUI/HyperOS: POCO Launcher — KEEP | Stock launcher on many Xiaomi/POCO builds. | **Critical — keep** | Do not disable unless you have verified device-specific replacement and recovery. Package varies by launcher/build. |
