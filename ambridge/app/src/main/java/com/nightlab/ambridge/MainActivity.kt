@@ -196,41 +196,10 @@ class MainActivity : Activity() {
         status.text = "Building app inventory and icon data…"
         Thread {
             try {
-                val apps = installedApplications()
-                val entries = JSONArray()
-                for (info in apps) {
-                    val item = JSONObject()
-                    item.put("packageName", info.packageName)
-                    item.put("label", safeLabel(info))
-                    item.put("systemApp", (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0)
-                    item.put("iconPngBase64", iconAsBase64(info))
-                    try {
-                        @Suppress("DEPRECATION")
-                        val version = packageManager.getPackageInfo(info.packageName, 0)
-                        item.put("versionName", version.versionName ?: "")
-                        item.put("versionCode", if (android.os.Build.VERSION.SDK_INT >= 28) {
-                            version.longVersionCode
-                        } else {
-                            @Suppress("DEPRECATION")
-                            version.versionCode.toLong()
-                        })
-                    } catch (_: Exception) {
-                        item.put("versionName", "")
-                        item.put("versionCode", 0)
-                    }
-                    entries.put(item)
-                }
-
-                val root = JSONObject()
-                root.put("schemaVersion", 1)
-                root.put("app", "NightLab AMBridge")
-                root.put("packageName", packageName)
-                root.put("exportedAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date()))
-                root.put("deviceManufacturer", android.os.Build.MANUFACTURER ?: "")
-                root.put("deviceModel", android.os.Build.MODEL ?: "")
-                root.put("androidRelease", android.os.Build.VERSION.RELEASE ?: "")
-                root.put("applications", entries)
-
+                // Reuse the same schema builder as the desktop HTTP endpoint so
+                // exported JSON and live inventory cannot drift apart.
+                val root = buildInventoryJson()
+                val appCount = root.getJSONArray("applications").length()
                 val fileName = "nightlab-ambridge-app-metadata.json"
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -253,7 +222,7 @@ class MainActivity : Activity() {
                 }
 
                 runOnUiThread {
-                    status.text = "Export complete\n" + apps.size + " apps written to Downloads/NightLab AMBridge/" + fileName
+                    status.text = "Export complete\n" + appCount + " apps written to Downloads/NightLab AMBridge/" + fileName
                     Toast.makeText(this, "App metadata exported", Toast.LENGTH_LONG).show()
                     exportButton.isEnabled = true
                 }
