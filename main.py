@@ -1782,8 +1782,11 @@ class MainWindow(QMainWindow):
                             paths_state["ok"] = False
                             self.log_message(f"Could not back up {package}/{filename}: {output}")
                         pull_next()
-                    self.run_async([adb, "-s", serial, "pull", remote, str(local)], pull_done, timeout=240,
-                                   on_error=lambda error: (setattr(paths_state, "ok", False), self.log_message(f"Could not pull {remote}: {error}"), pull_next()))
+                    def pull_failed(error: str) -> None:
+                        paths_state["ok"] = False
+                        self.log_message(f"Could not pull {remote}: {error}")
+                        pull_next()
+                    self.run_async([adb, "-s", serial, "pull", remote, str(local)], pull_done, timeout=240, on_error=pull_failed)
                 pull_next()
             self.run_async([adb, "-s", serial, "shell", "pm", "path", package], paths_done, timeout=60,
                            on_error=lambda error: (state["failed"].append({"package": package, "reason": error}),
@@ -1792,25 +1795,46 @@ class MainWindow(QMainWindow):
         self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages", "-3"], list_done, timeout=60)
 
     def restore_user_app_backup(self) -> None:
-        """Select a prior backup folder and queue its APK files for installation."""
+        """Choose an app from a prior backup and queue its APK or split set."""
         folder = QFileDialog.getExistingDirectory(self, "Select ADB App Manager backup folder")
         if not folder:
             return
         root = Path(folder)
-        apk_paths = sorted(str(path) for path in root.rglob("*.apk") if path.is_file())
-        if not apk_paths:
-            QMessageBox.information(self, APP_NAME, "No APK files were found in that folder. Choose the backup folder containing the app subfolders.")
+        app_dirs = sorted(path for path in root.iterdir() if path.is_dir() and any(path.rglob("*.apk")))
+        # Also support a folder containing ordinary APK files directly.
+        direct_apks = sorted(str(path) for path in root.glob("*.apk") if path.is_file())
+        if not app_dirs and not direct_apks:
+            QMessageBox.information(self, APP_NAME, "No APK files were found in that folder. Choose the backup folder containing app subfolders.")
             return
         if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
+        if direct_apks and not app_dirs:
+            apk_paths = direct_apks
+            split_mode = False
+            label = f"{len(apk_paths)} APK file(s)"
+        else:
+            choices = [path.name for path in app_dirs]
+            selected, ok = QInputDialog.getItem(
+                self, "Restore app backup", "Choose one app to restore (repeat for other apps):", choices, 0, False
+            )
+            if not ok or not selected:
+                return
+            app_dir = root / selected
+            apk_paths = sorted(str(path) for path in app_dir.rglob("*.apk") if path.is_file())
+            split_mode = len(apk_paths) > 1
+            label = f"{selected} ({len(apk_paths)} APK file(s))"
+        if not apk_paths:
+            QMessageBox.information(self, APP_NAME, "No APK files were found for that app.")
+            return
         if not self._confirmed(
             "Restore app APK backup",
-            f"Queue {len(apk_paths)} APK file(s) from this backup for installation on {self.device_id}?\n\n"
-            "Split APKs must be installed as a matching set. If your backup contains split bundles, use Install split APK set for each app."
+            f"Queue {label} for installation on {self.device_id}?\n\n"
+            "This restores APK files only, not app-private data, accounts, or settings. "
+            "Apps with multiple APK parts are installed together as a split set."
         ):
             return
-        self._open_apk_queue(split_mode=False, retry_paths=apk_paths)
+        self._open_apk_queue(split_mode=split_mode, retry_paths=apk_paths)
 
     def shell_command(self) -> None:
         command, ok = QInputDialog.getText(self, "ADB shell", "Enter an Android shell command:")
