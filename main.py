@@ -2158,43 +2158,100 @@ class MainWindow(QMainWindow):
         self.run_async([adb, "-s", serial, "shell", "pm", "list", "packages", "-3"], list_done, timeout=60)
 
     def restore_user_app_backup(self) -> None:
-        """Choose an app from a prior backup and queue its APK or split set."""
-        folder = QFileDialog.getExistingDirectory(self, "Select ADB App Manager backup folder")
+        """Restore one app from a backup snapshot, supporting the snapshot or its parent folder."""
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select backup snapshot folder (or the folder containing it)"
+        )
         if not folder:
             return
+
         root = Path(folder)
-        app_dirs = sorted(path for path in root.iterdir() if path.is_dir() and any(path.rglob("*.apk")))
-        # Also support a folder containing ordinary APK files directly.
+        # Resolve the common case where the user selects the parent of a timestamped backup.
+        if not (root / "manifest.json").is_file():
+            snapshots = sorted(
+                path for path in root.iterdir()
+                if path.is_dir() and (path / "manifest.json").is_file()
+            ) if root.is_dir() else []
+            if len(snapshots) == 1:
+                root = snapshots[0]
+            elif len(snapshots) > 1:
+                selected_snapshot, ok = QInputDialog.getItem(
+                    self, "Choose backup snapshot", "Select the backup you want to restore:",
+                    [path.name for path in snapshots], 0, False
+                )
+                if not ok or not selected_snapshot:
+                    return
+                root = root / selected_snapshot
+
+        if not root.is_dir():
+            QMessageBox.warning(self, APP_NAME, "The selected backup folder does not exist.")
+            return
+
+        manifest_path = root / "manifest.json"
+        manifest_packages: dict[str, dict] = {}
+        if manifest_path.is_file():
+            try:
+                manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                for item in manifest_data.get("packages", []):
+                    if isinstance(item, dict) and item.get("package"):
+                        manifest_packages[str(item["package"])] = item
+            except (OSError, json.JSONDecodeError) as exc:
+                QMessageBox.warning(
+                    self, APP_NAME,
+                    f"The backup manifest could not be read. APK files can still be checked manually.\n\n{exc}"
+                )
+
+        # Inspect only direct child app folders, never the whole snapshot as one split bundle.
+        app_dirs = sorted(
+            path for path in root.iterdir()
+            if path.is_dir() and any(candidate.is_file() for candidate in path.rglob("*.apk"))
+        )
         direct_apks = sorted(str(path) for path in root.glob("*.apk") if path.is_file())
         if not app_dirs and not direct_apks:
-            QMessageBox.information(self, APP_NAME, "No APK files were found in that folder. Choose the backup folder containing app subfolders.")
+            QMessageBox.information(
+                self, APP_NAME,
+                "No APK files were found. Choose the backup snapshot folder (the folder containing manifest.json and app subfolders)."
+            )
             return
         if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
-        if direct_apks and not app_dirs:
-            apk_paths = direct_apks
-            split_mode = False
-            label = f"{len(apk_paths)} APK file(s)"
-        else:
-            choices = [path.name for path in app_dirs]
-            selected, ok = QInputDialog.getItem(
-                self, "Restore app backup", "Choose one app to restore (repeat for other apps):", choices, 0, False
+
+        if app_dirs:
+            display_to_dir: dict[str, Path] = {}
+            for app_dir in app_dirs:
+                apk_count = sum(1 for path in app_dir.rglob("*.apk") if path.is_file())
+                info = manifest_packages.get(app_dir.name, {})
+                status_text = str(info.get("status", "backup found"))
+                label = f"{app_dir.name} — {apk_count} APK file(s) — {status_text}"
+                display_to_dir[label] = app_dir
+            selected_label, ok = QInputDialog.getItem(
+                self, "Restore app backup",
+                "Choose ONE app to restore. Repeat this action for other apps:",
+                list(display_to_dir), 0, False
             )
-            if not ok or not selected:
+            if not ok or not selected_label:
                 return
-            app_dir = root / selected
+            app_dir = display_to_dir[selected_label]
             apk_paths = sorted(str(path) for path in app_dir.rglob("*.apk") if path.is_file())
             split_mode = len(apk_paths) > 1
-            label = f"{selected} ({len(apk_paths)} APK file(s))"
+            label = f"{app_dir.name} ({len(apk_paths)} APK file(s))"
+        else:
+            # A folder of ordinary APKs is a batch of separate apps, not one split bundle.
+            apk_paths = direct_apks
+            split_mode = False
+            label = f"{len(apk_paths)} separate APK file(s)"
+
         if not apk_paths:
-            QMessageBox.information(self, APP_NAME, "No APK files were found for that app.")
+            QMessageBox.information(self, APP_NAME, "No APK files were found for the selected app.")
             return
         if not self._confirmed(
             "Restore app APK backup",
             f"Queue {label} for installation on {self.device_id}?\n\n"
-            "This restores APK files only, not app-private data, accounts, or settings. "
-            "Apps with multiple APK parts are installed together as a split set."
+            "A single APK uses normal install; split APKs for one app are installed together. "
+            "Separate APK files in a folder are handled as a normal batch.\n\n"
+            "This restores APK files only, not app-private data, accounts, logins, or settings. "
+            "Restore can fail if the signing key, Android version, or device requirements do not match."
         ):
             return
         self._open_apk_queue(split_mode=split_mode, retry_paths=apk_paths)
