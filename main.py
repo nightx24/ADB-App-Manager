@@ -1713,31 +1713,20 @@ class MainWindow(QMainWindow):
         return message
 
     def install_apks(self) -> None:
-        """Open a batch APK queue supporting drag/drop, options, retry, and logs."""
-        adb = self.adb_path()
-        if not adb:
-            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
-            return
-        if not self.device_id:
-            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
-            return
+        """Open the batch APK queue."""
         self._open_apk_queue(split_mode=False)
 
     def install_split_apks(self) -> None:
-        """Install one app's split APK set together using install-multiple."""
-        adb = self.adb_path()
-        if not adb:
-            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
-            return
-        if not self.device_id:
-            QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
-            return
+        """Open the split APK installer."""
         self._open_apk_queue(split_mode=True)
 
     def _open_apk_queue(self, split_mode: bool = False, retry_paths: list[str] | None = None) -> None:
         """Queue UI for batch installs. Each standalone APK is installed separately."""
         adb = self.adb_path()
-        if not adb or not self.device_id:
+        if not adb:
+            QMessageBox.warning(self, APP_NAME, "ADB is not installed or is not on PATH.")
+            return
+        if not self.device_id:
             QMessageBox.information(self, APP_NAME, "Connect and select an authorized Android device first.")
             return
 
