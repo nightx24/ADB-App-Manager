@@ -55,6 +55,16 @@ def _host_tool_env() -> dict[str, str]:
 
 # Conservative, exact-package recommendations adapted from public debloat research.
 # These are conditional suggestions, not guarantees. Never auto-remove any package.
+def parse_adb_devices(output: str) -> list[tuple[str, str, str]]:
+    """Parse `adb devices -l` output into (serial, state, details) entries."""
+    devices: list[tuple[str, str, str]] = []
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] in {"device", "unauthorized", "offline"}:
+            devices.append((parts[0], parts[1], " ".join(parts[2:])))
+    return devices
+
+
 def parse_package_names(output: str) -> list[str]:
     """Parse unique package names from Android package-manager output."""
     names: list[str] = []
@@ -545,8 +555,10 @@ class MainWindow(QMainWindow):
         self.device_stat = QLabel("No device selected")
         self.package_stat = QLabel("Not loaded")
         self.third_party_stat = QLabel("—")
+        self.connection_stat = QLabel("Waiting for device")
         for heading, value, name in [
             ("ACTIVE DEVICE", self.device_stat, "statDevice"),
+            ("CONNECTION STATUS", self.connection_stat, "statConnection"),
             ("INSTALLED PACKAGES", self.package_stat, "statPackages"),
             ("THIRD-PARTY APPS", self.third_party_stat, "statThirdParty"),
         ]:
@@ -885,8 +897,8 @@ class MainWindow(QMainWindow):
 
     def refresh_devices(self) -> None:
         adb = self.adb_path()
-        self.device_combo.clear()
         if not adb:
+            self.device_combo.clear()
             self.device_combo.addItem("ADB not found on PATH", "")
             self.device_id = None
             self.statusBar().showMessage("Install Android SDK Platform-Tools and add adb to PATH.")
@@ -896,25 +908,38 @@ class MainWindow(QMainWindow):
         self.run_async([adb, "devices", "-l"], self._devices_loaded)
 
     def _devices_loaded(self, output: str) -> None:
+        previous_device = self.device_id
+        devices = parse_adb_devices(output)
         self.device_combo.blockSignals(True)
         self.device_combo.clear()
         self.device_combo.addItem("Select Android device…", "")
-        for line in output.splitlines()[1:]:
-            parts = line.split()
-            if len(parts) >= 2 and parts[1] == "device":
-                serial = parts[0]
-                detail = " ".join(parts[2:])
+        for serial, state, detail in devices:
+            if state == "device":
                 self.device_combo.addItem(f"{serial}  {detail}".strip(), serial)
-            elif len(parts) >= 2 and parts[1] in ("unauthorized", "offline"):
-                self.device_combo.addItem(f"{parts[0]} ({parts[1]})", "")
+            else:
+                self.device_combo.addItem(f"{serial} ({state})", "")
+        if previous_device:
+            previous_index = self.device_combo.findData(previous_device)
+            if previous_index >= 0:
+                self.device_combo.setCurrentIndex(previous_index)
         self.device_combo.blockSignals(False)
         self.device_id = self.device_combo.currentData()
-        self.log_message(f"Device scan complete: {max(0, self.device_combo.count() - 1)} device entry/entries.")
-        self.statusBar().showMessage("Select a device, then load packages.")
-        self._selection_changed()
+        if self.device_id != previous_device:
+            self._device_changed()
+        else:
+            self.connection_stat.setText("Connected" if self.device_id else "No authorized device")
+            self._selection_changed()
+        self.log_message(f"Device scan complete: {len(devices)} device entry/entries.")
+        if not devices:
+            self.statusBar().showMessage("No Android devices detected. Connect a device and enable USB debugging.")
+        elif not self.device_id:
+            self.statusBar().showMessage("No authorized device selected. Unlock the phone and approve the ADB prompt.")
+        else:
+            self.statusBar().showMessage("Device connection refreshed. Your selection was preserved.")
 
     def _device_changed(self) -> None:
         self.device_id = self.device_combo.currentData()
+        self.connection_stat.setText("Connected" if self.device_id else "No authorized device")
         self.device_stat.setText(self.device_id or "No device selected")
         self.packages = []
         self._checked_packages.clear()
