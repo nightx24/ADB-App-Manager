@@ -1691,14 +1691,19 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _explain_adb_error(message: str) -> str:
-        """Add a short plain-language hint for common Android install errors."""
+        """Add plain-language help for common Android package installation failures."""
         lower = message.lower()
         hints = [
             (("insufficient_storage", "not enough space", "no space left"), "Free storage on the phone and retry."),
-            (("version_downgrade", "downgrade detected"), "Enable Allow downgrade if Android permits it, or install a newer version."),
-            (("update_incompatible", "signatures do not match", "inconsistent certificates"), "The installed app has a different signing key. Uninstalling can erase its data."),
-            (("parse_failed", "failed to parse", "no certificates"), "The APK may be corrupt, incomplete, or incompatible with this Android version."),
-            (("older sdk", "requires newer sdk"), "This APK requires a different Android version."),
+            (("version_downgrade", "downgrade detected", "install_failed_version_downgrade"), "Enable Allow downgrade if Android permits it, or install a newer version."),
+            (("update_incompatible", "signatures do not match", "inconsistent certificates", "install_failed_update_incompatible"), "The installed app uses a different signing key. Uninstalling may erase its data, so do not do that unless you have a backup."),
+            (("parse_failed", "failed to parse", "no certificates", "install_parse_failed"), "The APK may be incomplete, corrupt, or incompatible. Re-download it from a trusted source."),
+            (("older sdk", "requires newer sdk", "install_failed_older_sdk"), "This APK requires a newer Android version than the phone provides."),
+            (("no_matching_abis", "install_failed_no_matching_abis"), "The APK does not include a CPU architecture supported by this phone. Find the correct APK variant."),
+            (("missing_split", "install_failed_missing_split", "missing base apk"), "The split set is incomplete. Add the base APK and every matching split from the same app version."),
+            (("invalid_apk", "install_failed_invalid_apk"), "The APK or split set may be invalid, mixed from different versions, or incomplete."),
+            (("test_only", "install_failed_test_only"), "This is marked as a test-only APK. Only proceed if you trust the source and understand the implications."),
+            (("user_restricted", "install_failed_user_restricted"), "Android or device policy blocked installation. Check installation restrictions and work-profile policy."),
             (("unauthorized",), "Unlock the phone and approve the USB debugging prompt."),
             (("offline", "no devices/emulators found"), "Reconnect the phone and refresh the device list."),
         ]
@@ -1880,6 +1885,47 @@ class MainWindow(QMainWindow):
                 if not targets:
                     QMessageBox.information(dialog, APP_NAME, "No authorized Android devices are connected.")
                     return
+            if split_mode:
+                # When Android SDK Build Tools are available, catch mixed app/version
+                # selections before invoking adb install-multiple.
+                aapt = shutil.which("aapt") or shutil.which("aapt2")
+                if aapt:
+                    split_identities: set[tuple[str, str]] = set()
+                    unrecognized: list[str] = []
+                    for item in selected_entries:
+                        try:
+                            meta = subprocess.run(
+                                [aapt, "dump", "badging", item["path"]],
+                                capture_output=True, text=True, timeout=10, env=_host_tool_env()
+                            )
+                            package_line = next(
+                                (line for line in meta.stdout.splitlines() if line.startswith("package:")),
+                                ""
+                            )
+                            fields = dict(
+                                part.split("=", 1)
+                                for part in package_line.replace("package:", "").split()
+                                if "=" in part
+                            )
+                            package_name = fields.get("name", "").strip("'")
+                            version_code = fields.get("versionCode", "").strip("'")
+                            if meta.returncode != 0 or not package_name:
+                                unrecognized.append(Path(item["path"]).name)
+                            else:
+                                split_identities.add((package_name, version_code))
+                        except (OSError, subprocess.SubprocessError):
+                            unrecognized.append(Path(item["path"]).name)
+                    if len(split_identities) > 1:
+                        QMessageBox.warning(
+                            dialog, "Mixed split APK set",
+                            "These files appear to belong to different apps or versions. "
+                            "Select the base APK and matching splits from the same app version, then retry."
+                        )
+                        return
+                    if unrecognized:
+                        self.log_message(
+                            "Split APK metadata could not be verified for: " + ", ".join(unrecognized)
+                        )
             target_desc = f"{len(selected_entries)} APK file(s) on {len(targets)} device(s): {', '.join(targets)}"
             if not self._confirmed("Confirm APK installation", f"Install {target_desc}? Only install APKs you trust."):
                 return
