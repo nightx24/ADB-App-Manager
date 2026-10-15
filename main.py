@@ -490,8 +490,9 @@ class MainWindow(QMainWindow):
             ("Connection", "Configure older TCP/IP debugging.", [
                 ("Enable TCP/IP (USB)", self.enable_legacy_tcpip)
             ]),
-            ("Device maintenance", "Restart the selected device.", [
-                ("Reboot device", self.reboot_device)
+            ("Device maintenance", "Restart Android into system, recovery, bootloader, or supported EDL mode.", [
+                ("ADB reboot options", self.reboot_device),
+                ("Fastboot reboot options", self.fastboot_reboot_device),
             ]),
             ("Package presets", "Save or restore package selections.", [
                 ("Save preset", self.save_preset), ("Load preset", self.load_preset)
@@ -1847,13 +1848,87 @@ class MainWindow(QMainWindow):
             self.run_async(cmd, lambda out: self.log_message("Shell output:\n" + (out or "(no output)")), timeout=120)
 
     def reboot_device(self) -> None:
-        mode, ok = QInputDialog.getItem(self, "Reboot device", "Choose target:", ["System", "Bootloader / Fastboot", "Recovery"], 0, False)
+        """Use ADB to reboot an authorized Android device into a supported target."""
+        modes = ["System", "Recovery", "Bootloader / Fastboot", "EDL (device-dependent)"]
+        mode, ok = QInputDialog.getItem(self, "ADB reboot options", "Choose reboot target:", modes, 0, False)
         if not ok:
             return
-        args = {"System": ["reboot"], "Bootloader / Fastboot": ["reboot", "bootloader"], "Recovery": ["reboot", "recovery"]}[mode]
+        args = {
+            "System": ["reboot"],
+            "Recovery": ["reboot", "recovery"],
+            "Bootloader / Fastboot": ["reboot", "bootloader"],
+            "EDL (device-dependent)": ["reboot", "edl"],
+        }[mode]
         cmd = self._device_adb(*args)
-        if cmd and self._confirmed("Reboot device?", f"Reboot the connected device into {mode}?"):
-            self.run_async(cmd, lambda out: self.log_message(f"Reboot command sent ({mode})."), timeout=30)
+        if not cmd:
+            return
+        warning = ""
+        if mode == "EDL (device-dependent)":
+            warning = (
+                "\n\nEDL is a low-level Qualcomm emergency download mode. This command is not supported "
+                "on every phone; some devices may require authorized service access or a hardware key sequence. "
+                "Entering EDL can leave the phone difficult to recover if you do not have the correct recovery tools."
+            )
+        if self._confirmed("Confirm device reboot", f"Send ADB reboot command for: {mode}?{warning}"):
+            self.run_async(
+                cmd,
+                lambda out: self.log_message(f"ADB reboot command sent ({mode}). {out}".strip()),
+                timeout=30,
+            )
+
+    def fastboot_reboot_device(self) -> None:
+        """Run standard fastboot reboot commands after the phone is already in bootloader mode."""
+        fastboot = shutil.which("fastboot")
+        if not fastboot:
+            QMessageBox.warning(
+                self, APP_NAME,
+                "The fastboot executable was not found on PATH. Install Android SDK Platform-Tools and try again."
+            )
+            return
+        try:
+            scan = subprocess.run(
+                [fastboot, "devices"], capture_output=True, text=True, timeout=15, env=_host_tool_env()
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            QMessageBox.warning(self, APP_NAME, f"Could not query fastboot devices:\n{exc}")
+            return
+        devices = [line.split()[0] for line in scan.stdout.splitlines() if len(line.split()) >= 2]
+        if scan.returncode != 0 or not devices:
+            QMessageBox.information(
+                self, APP_NAME,
+                "No fastboot device was detected.\n\nReboot the phone to Bootloader / Fastboot first, then check the USB connection and drivers."
+            )
+            if scan.stderr.strip():
+                self.log_message("fastboot devices: " + scan.stderr.strip())
+            return
+        if len(devices) == 1:
+            serial = devices[0]
+        else:
+            serial, ok = QInputDialog.getItem(
+                self, "Select fastboot device", "Choose the target device:", devices, 0, False
+            )
+            if not ok or not serial:
+                return
+        actions = ["Reboot to Android", "Reboot to recovery", "Reboot to bootloader again"]
+        action, ok = QInputDialog.getItem(self, "Fastboot reboot options", "Choose command:", actions, 0, False)
+        if not ok:
+            return
+        command_args = {
+            "Reboot to Android": ["reboot"],
+            "Reboot to recovery": ["reboot", "recovery"],
+            "Reboot to bootloader again": ["reboot-bootloader"],
+        }[action]
+        if not self._confirmed(
+            "Confirm fastboot command",
+            f"Run fastboot {' '.join(command_args)} on {serial}?\n\nThis only reboots the device; it does not flash or erase partitions."
+        ):
+            return
+        command = [fastboot, "-s", serial, *command_args]
+        self.run_async(
+            command,
+            lambda out: self.log_message(f"Fastboot command sent to {serial}: {action}. {out}".strip()),
+            timeout=45,
+        )
 
     def save_preset(self) -> None:
         selected = self.selected_packages()
